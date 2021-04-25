@@ -1,0 +1,18 @@
+// USE GRADLE 6.8.3
+
+plugins {
+    id 'java-library'
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        name 'm2-dv8tion'
+        url 'https://m2.dv8tion.net/releases'
+    }
+}
+
+dependencies {
+	compile("net.dv8tion:JDA:4.2.1_253")
+	compile("ch.qos.logback:logback-classic:1.2.3")
+}
