@@ -1,12 +1,15 @@
-// USE GRADLE 6.8.3
+// USE GRADLE 7
 
 plugins {
     id 'java-library'
+    id("com.github.johnrengelman.shadow") version "5.1.0"
 }
+
+sourceCompatibility = "1.8";
+targetCompatibility = "1.8";
 
 repositories {
     mavenCentral()
-    jcenter()
     maven {
         name 'm2-dv8tion'
         url 'https://m2.dv8tion.net/releases'
@@ -15,9 +18,15 @@ repositories {
 }
 
 dependencies {
-	compile("net.dv8tion:JDA:4.2.1_253") {
+	implementation("net.dv8tion:JDA:4.2.1_253") {
 		exclude module: 'dv8tion'
 		exclude module: 'iwebpp'
 	}
-	compile("ch.qos.logback:logback-classic:1.2.3")
+	implementation("net.java.dev.jna:jna:4.4.0")
+	implementation("net.sf.trove4j:trove4j:3.0.3")
+	implementation("ch.qos.logback:logback-classic:1.2.3")
+	implementation("com.fasterxml.jackson.core:jackson-databind:2.10.1")
+	implementation("com.squareup.okhttp3:okhttp:3.13.0")
 }
+
+build.dependsOn(shadowJar)
