@@ -1,4 +1,2 @@
-TAS Discord Bot
-
-## Dev Note
-To make it work you need to copy the Code from [here](https://github.com/DV8FromTheWorld/JDA/tree/feature/slash-commands) into the source folder
+# TAS8999 Discord Bot
+This is a remake of the TAS9000 Bot in the TASBot Discord. This one is made for Minecraft
