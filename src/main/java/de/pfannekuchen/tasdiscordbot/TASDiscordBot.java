@@ -11,12 +11,13 @@ import de.pfannekuchen.tasdiscordbot.parser.CommandParser;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
+import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.events.interaction.SlashCommandEvent;
 import net.dv8tion.jda.api.events.message.react.MessageReactionAddEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
-import net.dv8tion.jda.api.requests.restaction.CommandUpdateAction;
-import net.dv8tion.jda.api.requests.restaction.CommandUpdateAction.CommandData;
+import net.dv8tion.jda.api.interactions.commands.build.CommandData;
+import net.dv8tion.jda.api.requests.restaction.CommandListUpdateAction;
 
 public class TASDiscordBot extends ListenerAdapter implements Runnable {
 
@@ -28,7 +29,7 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 	public void onSlashCommand(SlashCommandEvent event) {
 		for (CommandParser cmd : commands) 
 			if (cmd.getCommand().equalsIgnoreCase(event.getName())) 
-				event.reply(cmd.run(event.getTextChannel(), event.getUser())).complete();
+				event.reply(new MessageBuilder().setEmbed(cmd.run(event.getTextChannel(), event.getUser())).build()).complete();
 	}
 	@Override
 	public void onMessageReactionAdd(MessageReactionAddEvent event) {
@@ -52,7 +53,7 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 		System.out.println("[TAS8999] Parsing Configuration...");
 		final String[] commands = configuration.getProperty("commands", "null").split(",");
 		System.out.println("[TAS8999] Found " + commands.length + " Commands.");
-		CommandUpdateAction updater = jda.getGuilds().get(0).updateCommands();
+		CommandListUpdateAction updater = jda.getGuilds().get(0).updateCommands();
 		for (int i = 0; i < commands.length; i++) {
 			CommandParser cmd;
 			this.commands.add(cmd = CommandParser.parseMessage(commands[i], configuration.getProperty(commands[i], "No command registered!")));
