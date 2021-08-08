@@ -37,7 +37,7 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 				String[] words = msg.getContentRaw().split(" ");
 				for (String word : words) {
 					for (String blacklistedWord : blacklist) {
-						if (blacklistedWord.equalsIgnoreCase(word)) {
+						if (blacklistedWord.toLowerCase().contains(word.toLowerCase())) {
 							event.getChannel().deleteMessageById(event.getMessageId()).queue();
 							return;
 						}
