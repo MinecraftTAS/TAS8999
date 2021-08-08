@@ -14,6 +14,7 @@ import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.MessageBuilder;
+import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.events.interaction.SlashCommandEvent;
 import net.dv8tion.jda.api.events.message.guild.GenericGuildMessageEvent;
@@ -78,14 +79,16 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 		System.out.println("[TAS8999] Parsing Configuration...");
 		final String[] commands = configuration.getProperty("commands", "null").split(",");
 		System.out.println("[TAS8999] Found " + commands.length + " Commands.");
-		CommandListUpdateAction updater = jda.getGuilds().get(0).updateCommands();
-		for (int i = 0; i < commands.length; i++) {
-			CommandParser cmd;
-			this.commands.add(cmd = CommandParser.parseMessage(commands[i], configuration.getProperty(commands[i], "No command registered!")));
-			updater.addCommands(new CommandData(cmd.getCommand(), configuration.getProperty(commands[i] + "description", "Does not have a description")));
-			System.out.println("[TAS8999] Successfully registered a new command");
+		for (Guild g : jda.getGuilds()) {
+			CommandListUpdateAction updater = g.updateCommands();
+			for (int i = 0; i < commands.length; i++) {
+				CommandParser cmd;
+				this.commands.add(cmd = CommandParser.parseMessage(commands[i], configuration.getProperty(commands[i], "No command registered!")));
+				updater.addCommands(new CommandData(cmd.getCommand(), configuration.getProperty(commands[i] + "description", "Does not have a description")));
+				System.out.println("[TAS8999] Successfully registered a new command");
+			}
+			updater.queue();
 		}
-		updater.queue();
 		
 		/* Server Data for the message */
 		TextChannel channel = jda.getTextChannelsByName(configuration.getProperty("rconchannel"), true).get(0);
