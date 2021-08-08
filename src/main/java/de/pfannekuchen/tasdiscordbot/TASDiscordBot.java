@@ -2,6 +2,8 @@ package de.pfannekuchen.tasdiscordbot;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Properties;
 
 import javax.security.auth.login.LoginException;
@@ -14,6 +16,7 @@ import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.events.interaction.SlashCommandEvent;
+import net.dv8tion.jda.api.events.message.guild.GenericGuildMessageEvent;
 import net.dv8tion.jda.api.events.message.react.MessageReactionAddEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.commands.build.CommandData;
@@ -23,7 +26,28 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 
 	private final JDA jda;
 	private final Properties configuration;
+	private final List<String> blacklist;
 	private final ArrayList<CommandParser> commands;
+	
+	@Override
+	public void onGenericGuildMessage(GenericGuildMessageEvent event) {
+		try {
+			event.getChannel().retrieveMessageById(event.getMessageId()).queue(msg -> {
+				String[] words = msg.getContentRaw().split(" ");
+				for (String word : words) {
+					for (String blacklistedWord : blacklist) {
+						if (blacklistedWord.equalsIgnoreCase(word)) {
+							event.getChannel().deleteMessageById(event.getMessageId()).queue();
+							return;
+						}
+					}
+				}
+			});
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		super.onGenericGuildMessage(event);
+	}
 	
 	@Override
 	public void onSlashCommand(SlashCommandEvent event) {
@@ -44,6 +68,7 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 		final JDABuilder builder = JDABuilder.createLight(this.configuration.getProperty("token")).addEventListeners(this);
 		this.jda = builder.build();
 		this.jda.awaitReady();
+		this.blacklist = Arrays.asList(this.configuration.getProperty("blacklist").split(";"));
 		this.commands = new ArrayList<CommandParser>();
 	}
 
