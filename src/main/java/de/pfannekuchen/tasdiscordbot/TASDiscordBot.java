@@ -76,7 +76,6 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 						int playerCount = Integer.parseInt(input.split("are")[1].split("of")[0].trim());
 						channel.editMessageById(message, new EmbedBuilder().setTitle("TAS Battle Server").addField("Players", "There " + (playerCount == 1 ? "is" : "are") + " currently %x player".replaceAll("%x", playerCount + "") + (playerCount == 1 ? "" : "s") + " online", true).build()).queue();
 					} catch (Exception e1) {
-						e1.printStackTrace();
 						System.err.println("RCON Connection didn't work");
 					}
 				}
