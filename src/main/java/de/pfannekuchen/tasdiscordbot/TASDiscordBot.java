@@ -10,6 +10,8 @@ import javax.security.auth.login.LoginException;
 
 import de.pfannekuchen.tasdiscordbot.core.Rcon;
 import de.pfannekuchen.tasdiscordbot.parser.CommandParser;
+import de.pfannekuchen.tasdiscordbot.util.ModUtil;
+import de.pfannekuchen.tasdiscordbot.util.SpamProtection;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
@@ -21,7 +23,9 @@ import net.dv8tion.jda.api.events.message.guild.GenericGuildMessageEvent;
 import net.dv8tion.jda.api.events.message.react.MessageReactionAddEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.commands.build.CommandData;
+import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.requests.restaction.CommandListUpdateAction;
+import net.dv8tion.jda.api.utils.MemberCachePolicy;
 
 public class TASDiscordBot extends ListenerAdapter implements Runnable {
 
@@ -29,16 +33,25 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 	private final Properties configuration;
 	private final List<String> blacklist;
 	private final ArrayList<CommandParser> commands;
+	private final SpamProtection protecc=new SpamProtection();
+	
 	
 	@Override
 	public void onGenericGuildMessage(GenericGuildMessageEvent event) {
 		try {
-			event.getChannel().retrieveMessageById(event.getMessageId()).queue(msg -> {
+			event.getChannel().retrieveMessageById(event.getMessageId()).submit().whenComplete((msg, stage) -> {
+				protecc.checkMessage(msg);
+			});
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		try {
+			event.getChannel().retrieveMessageById(event.getMessageId()).submit().whenComplete((msg, stage) -> {
 				String[] words = msg.getContentRaw().split(" ");
 				for (String word : words) {
 					for (String blacklistedWord : blacklist) {
 						if (word.toLowerCase().contains(blacklistedWord.toLowerCase())) {
-							event.getChannel().deleteMessageById(event.getMessageId()).queue();
+							ModUtil.deleteMessage(msg, "Blacklisted Word");
 							return;
 						}
 					}
@@ -54,7 +67,7 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 	public void onSlashCommand(SlashCommandEvent event) {
 		for (CommandParser cmd : commands) 
 			if (cmd.getCommand().equalsIgnoreCase(event.getName())) 
-				event.reply(new MessageBuilder().setEmbed(cmd.run(event.getTextChannel(), event.getUser())).build()).complete();
+				event.reply(new MessageBuilder().setEmbeds(cmd.run(event.getTextChannel(), event.getUser())).build()).complete();
 	}
 	@Override
 	public void onMessageReactionAdd(MessageReactionAddEvent event) {
@@ -66,7 +79,10 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 	
 	public TASDiscordBot(Properties configuration) throws InterruptedException, LoginException {
 		this.configuration = configuration;
-		final JDABuilder builder = JDABuilder.createLight(this.configuration.getProperty("token")).addEventListeners(this);
+		final JDABuilder builder = JDABuilder.createDefault(this.configuration.getProperty("token"))
+				.setMemberCachePolicy(MemberCachePolicy.ALL)
+                .enableIntents(GatewayIntent.GUILD_MEMBERS)
+                .addEventListeners(this);
 		this.jda = builder.build();
 		this.jda.awaitReady();
 		this.blacklist = Arrays.asList(this.configuration.getProperty("blacklist").split(";"));
@@ -93,7 +109,7 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 		/* Server Data for the message */
 		TextChannel channel = jda.getTextChannelsByName(configuration.getProperty("rconchannel"), true).get(0);
 		String rconpw;
-		final long message = channel.sendMessage(new EmbedBuilder().setTitle("TAS Battle Server").addField("Players", "There are currently %x players online", true).build()).complete().getIdLong();
+		final long message = channel.sendMessageEmbeds(new EmbedBuilder().setTitle("TAS Battle Server").addField("Players", "There are currently %x players online", true).build()).complete().getIdLong();
 		if (!(rconpw = configuration.getProperty("rconpw", "none")).equalsIgnoreCase("none")) {
 			Thread d = new Thread(() -> {
 				while (true) {
@@ -102,7 +118,7 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 						Rcon rcon = new Rcon("mgnet.work", 25575, rconpw.getBytes(StandardCharsets.UTF_8));
 						String input = rcon.command("list");
 						int playerCount = Integer.parseInt(input.split("are")[1].split("of")[0].trim());
-						channel.editMessageById(message, new EmbedBuilder().setTitle("TAS Battle Server").addField("Players", "There " + (playerCount == 1 ? "is" : "are") + " currently %x player".replaceAll("%x", playerCount + "") + (playerCount == 1 ? "" : "s") + " online", true).build()).queue();
+						channel.editMessageEmbedsById(message, new EmbedBuilder().setTitle("TAS Battle Server").addField("Players", "There " + (playerCount == 1 ? "is" : "are") + " currently %x player".replaceAll("%x", playerCount + "") + (playerCount == 1 ? "" : "s") + " online", true).build()).queue();
 					} catch (Exception e1) {
 						System.err.println("RCON Connection didn't work");
 					}
@@ -111,6 +127,6 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 			d.setDaemon(true);
 			d.start();
 		}
+		
 	}
-	
 }
