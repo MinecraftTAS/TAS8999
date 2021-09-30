@@ -21,14 +21,14 @@ public class SpamProtection {
 		if (containsLink(msg)) {
 			User msgAuthor = msg.getAuthor();
 			if (msg.getMember() == null) {
-				System.out.println(msgAuthor.getName() + " member is null");
+				System.out.println("[TAS8999] "+msgAuthor.getName() + " member is null");
 			}
 			if (isAlreadySus(msgAuthor)) {
 				UserData data = get(msgAuthor);
 				data.addMsg(msg);
 				if (data.channelchanges == 3) {
 					Guild guild = msg.getGuild();
-					System.out.println("Trying to kick " + msgAuthor.getName());
+					System.out.println("[TAS8999] Trying to kick " + msgAuthor.getName());
 					guild.kick(msg.getMember(), "Spam protection").queue();
 					data.pruneMsgs();
 					suspiciousUsers.remove(data);
@@ -105,7 +105,7 @@ public class SpamProtection {
 
 		public UserData(User user, Message msg) {
 			this.user = user;
-			this.cooldown = 500;
+			this.cooldown = 1000;
 			prevChannel = msg.getChannel();
 			channelchanges++;
 			messages.add(msg);
@@ -126,7 +126,6 @@ public class SpamProtection {
 		public void pruneMsgs() {
 			messages.forEach(msg -> {
 				msg.delete().queue();
-				;
 			});
 		}
 	}
