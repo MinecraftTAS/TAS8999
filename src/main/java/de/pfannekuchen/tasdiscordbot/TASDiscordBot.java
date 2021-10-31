@@ -43,20 +43,18 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 	
 	@Override
 	public void onGenericPrivateMessage(GenericPrivateMessageEvent event) {
-		if (event.getChannel().getUser().getIdLong() == 464843391771869185L || event.getChannel().getUser().getIdLong() == 146588910292566016L) {
-			for (Role role : jda.getGuildById(373166430478401555L).retrieveMember(event.getChannel().getUser()).complete().getRoles()) {
-				if (role.getIdLong() == 776544617956769802L) {
-					Message msg = event.getChannel().retrieveMessageById(event.getMessageIdLong()).complete();
-					if (SpamProtection.containsLink(msg) && !msg.getAuthor().isBot()) {
-						if (new File("submissions").exists()) {
-							event.getChannel().sendMessage("Your TAS Competition Submission has been changed to:\n " + msg.getContentStripped()).complete();
-							File f = new File("submissions/" + event.getChannel().getUser().getName().toLowerCase());
-							try {
-								f.createNewFile();
-								Files.write(f.toPath(), msg.getContentStripped().getBytes(StandardCharsets.UTF_8));
-							} catch (IOException e) {
-								e.printStackTrace();
-							}
+		for (Role role : jda.getGuildById(373166430478401555L).retrieveMember(event.getChannel().getUser()).complete().getRoles()) {
+			if (role.getIdLong() == 776544617956769802L) {
+				Message msg = event.getChannel().retrieveMessageById(event.getMessageIdLong()).complete();
+				if (SpamProtection.containsLink(msg) && !msg.getAuthor().isBot()) {
+					if (new File("submissions").exists()) {
+						event.getChannel().sendMessage("Your TAS Competition Submission has been changed to:\n " + msg.getContentStripped()).complete();
+						File f = new File("submissions/" + event.getChannel().getUser().getName().toLowerCase());
+						try {
+							f.createNewFile();
+							Files.write(f.toPath(), msg.getContentStripped().getBytes(StandardCharsets.UTF_8));
+						} catch (IOException e) {
+							e.printStackTrace();
 						}
 					}
 				}
