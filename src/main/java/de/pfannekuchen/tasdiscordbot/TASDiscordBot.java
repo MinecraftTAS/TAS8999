@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 
 import javax.security.auth.login.LoginException;
 
@@ -21,6 +22,7 @@ import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.MessageType;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.events.interaction.SlashCommandEvent;
@@ -45,16 +47,53 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 	public void onGenericPrivateMessage(GenericPrivateMessageEvent event) {
 		for (Role role : jda.getGuildById(373166430478401555L).retrieveMember(event.getChannel().getUser()).complete().getRoles()) {
 			if (role.getIdLong() == 776544617956769802L) {
-				Message msg = event.getChannel().retrieveMessageById(event.getMessageIdLong()).complete();
-				if (SpamProtection.containsLink(msg) && !msg.getAuthor().isBot()) {
+				Message msg = null;
+				try {
+					msg = event.getChannel().retrieveMessageById(event.getMessageIdLong()).complete();
+				} catch (Exception e3) {
+					return;
+				}
+				if (!msg.getAuthor().isBot()) {
 					if (new File("submissions").exists()) {
-						event.getChannel().sendMessage("Your TAS Competition Submission has been changed to:\n " + msg.getContentStripped()).complete();
-						File f = new File("submissions/" + event.getChannel().getUser().getName().toLowerCase());
+						Message e = event.getChannel().sendMessage("Your TAS Competition Submission has been changed to:\n " + msg.getContentStripped()).complete();
+						new Thread(() -> {
+							try {
+								Thread.sleep(5000);
+							} catch (InterruptedException e1) {
+								e1.printStackTrace();
+							}
+							event.getChannel().deleteMessageById(e.getIdLong()).queueAfter(5L, TimeUnit.SECONDS);
+						}).start();
+						File f = new File("submissions/" + (event.getChannel().getUser().getAsTag()));
 						try {
 							f.createNewFile();
 							Files.write(f.toPath(), msg.getContentStripped().getBytes(StandardCharsets.UTF_8));
-						} catch (IOException e) {
-							e.printStackTrace();
+							File[] submissions = new File("submissions").listFiles();
+							TextChannel channel = jda.getGuildById(373166430478401555L).getTextChannelById(904465448932892702L);
+							for (Message msgs : channel.getHistoryFromBeginning(99).complete().getRetrievedHistory()) {
+								if (msgs.getType() == MessageType.CHANNEL_PINNED_ADD) {
+									msgs.delete().complete();
+									continue;
+								}
+								String message = msgs.getContentStripped();
+								if (!message.contains("OLD SUBMISSION")) {
+									channel.unpinMessageById(msgs.getIdLong()).complete();
+									msgs.editMessage("~~" + message + "~~ - OLD SUBMISSION").complete();
+									msgs.suppressEmbeds(true).complete();
+								}
+							}
+							for (File file : submissions) {
+								Message m = channel.sendMessage(file.getName() + " -> " + Files.readAllLines(file.toPath()).get(0)).complete();
+								m.pin().complete();
+							}
+							for (Message msgs : channel.getHistoryFromBeginning(99).complete().getRetrievedHistory()) {
+								if (msgs.getType() == MessageType.CHANNEL_PINNED_ADD) {
+									msgs.delete().complete();
+									continue;
+								}
+							}
+						} catch (IOException e2) {
+							e2.printStackTrace();
 						}
 					}
 				}
