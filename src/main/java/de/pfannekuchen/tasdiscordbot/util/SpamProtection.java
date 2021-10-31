@@ -105,7 +105,7 @@ public class SpamProtection {
 
 		public UserData(User user, Message msg) {
 			this.user = user;
-			this.cooldown = 500;
+			this.cooldown = 1000;
 			prevChannel = msg.getChannel();
 			channelchanges++;
 			messages.add(msg);
