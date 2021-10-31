@@ -1,6 +1,9 @@
 package de.pfannekuchen.tasdiscordbot;
 
+import java.io.File;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -17,9 +20,12 @@ import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.events.interaction.SlashCommandEvent;
 import net.dv8tion.jda.api.events.message.guild.GenericGuildMessageEvent;
+import net.dv8tion.jda.api.events.message.priv.GenericPrivateMessageEvent;
 import net.dv8tion.jda.api.events.message.react.MessageReactionAddEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.commands.build.CommandData;
@@ -35,6 +41,28 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 	private final ArrayList<CommandParser> commands;
 	private final SpamProtection protecc=new SpamProtection();
 	
+	@Override
+	public void onGenericPrivateMessage(GenericPrivateMessageEvent event) {
+		if (event.getChannel().getUser().getIdLong() == 464843391771869185L || event.getChannel().getUser().getIdLong() == 146588910292566016L) {
+			for (Role role : jda.getGuildById(373166430478401555L).retrieveMember(event.getChannel().getUser()).complete().getRoles()) {
+				if (role.getIdLong() == 776544617956769802L) {
+					Message msg = event.getChannel().retrieveMessageById(event.getMessageIdLong()).complete();
+					if (SpamProtection.containsLink(msg) && !msg.getAuthor().isBot()) {
+						if (new File("submissions").exists()) {
+							event.getChannel().sendMessage("Your TAS Competition Submission has been changed to:\n " + msg.getContentStripped()).complete();
+							File f = new File("submissions/" + event.getChannel().getUser().getName().toLowerCase());
+							try {
+								f.createNewFile();
+								Files.write(f.toPath(), msg.getContentStripped().getBytes(StandardCharsets.UTF_8));
+							} catch (IOException e) {
+								e.printStackTrace();
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 	
 	@Override
 	public void onGenericGuildMessage(GenericGuildMessageEvent event) {

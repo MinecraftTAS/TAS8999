@@ -48,7 +48,7 @@ public class SpamProtection {
 		}
 	}
 
-	public boolean containsLink(Message msg) {
+	public static boolean containsLink(Message msg) {
 		String content = msg.getContentStripped();
 		if (content.isEmpty())
 			return false;
