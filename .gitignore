@@ -16,3 +16,8 @@ out/
 
 .properties
 *.properties
+
+# JDA stuff
+dv8tion/
+iwebpp/
+submissions/
