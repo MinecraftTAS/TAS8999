@@ -22,7 +22,6 @@ import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Message;
-import net.dv8tion.jda.api.entities.MessageType;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.events.interaction.SlashCommandEvent;
@@ -71,27 +70,13 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 							File[] submissions = new File("submissions").listFiles();
 							TextChannel channel = jda.getGuildById(373166430478401555L).getTextChannelById(904465448932892702L);
 							for (Message msgs : channel.getHistoryFromBeginning(99).complete().getRetrievedHistory()) {
-								if (msgs.getType() == MessageType.CHANNEL_PINNED_ADD) {
-									msgs.delete().complete();
-									continue;
-								}
 								String message = msgs.getContentStripped();
 								if (!message.contains("OLD SUBMISSION")) {
-									channel.unpinMessageById(msgs.getIdLong()).complete();
 									msgs.editMessage("~~" + message + "~~ - OLD SUBMISSION").complete();
 									msgs.suppressEmbeds(true).complete();
 								}
 							}
-							for (File file : submissions) {
-								Message m = channel.sendMessage(file.getName() + " -> " + Files.readAllLines(file.toPath()).get(0)).complete();
-								m.pin().complete();
-							}
-							for (Message msgs : channel.getHistoryFromBeginning(99).complete().getRetrievedHistory()) {
-								if (msgs.getType() == MessageType.CHANNEL_PINNED_ADD) {
-									msgs.delete().complete();
-									continue;
-								}
-							}
+							for (File file : submissions) channel.sendMessage(file.getName() + " -> " + Files.readAllLines(file.toPath()).get(0)).complete();
 						} catch (IOException e2) {
 							e2.printStackTrace();
 						}
