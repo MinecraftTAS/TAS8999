@@ -154,7 +154,7 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 					return;
 				}
 				
-				event.deferReply().submit().whenComplete((hook, throwable) ->{
+				event.deferReply().queue(hook ->{
 					try {
 						reactionroles.addNewMessage(event.getGuild(), event.getChannel(), event.getOption("arguments").getAsString());
 					} catch (Exception e) {
@@ -194,7 +194,7 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 			}
 			else if (EmoteWrapper.getReactionEmoteId(reactionEmote).equals(EmojiUtils.emojify(":x:"))) {
 
-				event.retrieveMessage().submit().whenComplete((msg, stage) -> {
+				event.retrieveMessage().queue(msg -> {
 					if (Util.isThisUserThisBot(msg.getAuthor())) {
 
 						if (Util.hasBotReactedWith(msg, EmojiUtils.emojify(":x:"))) {
@@ -208,20 +208,19 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 	
 	@Override
 	public void onMessageReactionRemove(MessageReactionRemoveEvent event) {
-		if (!Util.isThisUserThisBot(event.getUser())) {
+		ReactionEmote reactionEmote = event.getReactionEmote();
 
-			ReactionEmote reactionEmote = event.getReactionEmote();
+		String roleId = reactionroles.getRole(event.getGuild(), event.getMessageIdLong(),
+				EmoteWrapper.getReactionEmoteId(reactionEmote));
 
-			String roleId = reactionroles.getRole(event.getGuild(), event.getMessageIdLong(), EmoteWrapper.getReactionEmoteId(reactionEmote));
-			
-			if(!roleId.isEmpty()) {
-				Guild guild=event.getGuild();
-				Role role=guild.getRoleById(roleId);
-				guild.removeRoleFromMember(event.getMember(), role).queue();;
-			}
+		if (!roleId.isEmpty()) {
+			Guild guild = event.getGuild();
+			Role role = guild.getRoleById(roleId);
+			guild.removeRoleFromMember(event.getMember(), role).queue();
+			;
 		}
 	}
-	
+
 	private static TASDiscordBot instance;
 	
 	public TASDiscordBot(Properties configuration) throws InterruptedException, LoginException {
@@ -262,6 +261,8 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 			
 			SubcommandData addSubCommand=new SubcommandData("add", "Add a new reaction role");
 			addSubCommand.addOption(OptionType.STRING, "arguments", "The emotes and roles to add");
+			
+			reactionRoleCommand.setDefaultEnabled(false);
 			
 			reactionRoleCommand.addSubcommands(addSubCommand);
 			

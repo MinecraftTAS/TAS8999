@@ -59,7 +59,14 @@ public class ReactionRoles {
 			List<String> lines=FileUtils.readLines(file, StandardCharsets.UTF_8);
 			for (String line : lines) {
 				String[] split=line.split("\\|");
-				guildMessages.add(new ReactionRoleMessage(guild, Long.parseLong(split[1]), Long.parseLong(split[0]), split[2], Integer.parseInt(split[3])));
+				
+				ReactionRoleMessage newmessage;
+				try {
+					newmessage=new ReactionRoleMessage(guild, Long.parseLong(split[1]), Long.parseLong(split[0]), split[2], Integer.parseInt(split[3]));
+				}catch (Exception e) {
+					continue;
+				}
+				guildMessages.add(newmessage);
 			}
 		return guildMessages;
 	}
@@ -76,13 +83,17 @@ public class ReactionRoles {
 
 	public void addNewMessage(Guild guild, MessageChannel channel, String text) throws Exception {
 		ReactionRoleMessage newMessage=new ReactionRoleMessage(guild, channel, text, color);
-		allMessages.get(guild.getIdLong()).add(newMessage);
-		
-		save(guild);
+		newMessage.sendMessageWithReactions(channel).whenComplete((msg, throwable) ->{
+			allMessages.get(guild.getIdLong()).add(newMessage);
+			save(guild);
+		});
 	}
 	
 	private void save(Guild guild) {
 		File outFile=new File(folder, guild.getId()+fileExstension);
+		if(outFile.exists()) {
+			outFile.delete();
+		}
 		List<ReactionRoleMessage> messages=allMessages.get(guild.getIdLong());
 		try {
 			FileUtils.writeLines(outFile, StandardCharsets.UTF_8.name(), messages);

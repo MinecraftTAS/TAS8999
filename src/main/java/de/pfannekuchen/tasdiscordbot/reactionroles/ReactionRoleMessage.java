@@ -19,6 +19,8 @@ public class ReactionRoleMessage {
 
 	private long channelId;
 	
+	private Message msg;
+	
 	private long messageId;
 	
 	private List<Pair<EmoteWrapper, RoleWrapper>> reactionPairs=new ArrayList<>();
@@ -33,13 +35,15 @@ public class ReactionRoleMessage {
 		
 		this.channelId=channel.getIdLong();
 		
-		Message msg=new MessageBuilder().setEmbeds(embed(argumentText, color, channel)).build();
-		sendMessageWithReactions(channel, msg);
+		msg=new MessageBuilder().setEmbeds(embed(argumentText, color, channel)).build();
 	}
 	
-	public ReactionRoleMessage(Guild guild, long channelId, long messageId, String argumentText, int color) {
+	public ReactionRoleMessage(Guild guild, long channelId, long messageId, String argumentText, int color) throws Exception {
 		MessageChannel channel=(MessageChannel) guild.getGuildChannelById(channelId);
-		channel.retrieveMessageById(messageId).queue(msg ->{}, failure -> {});
+		
+		//Test if message exists
+		channel.retrieveMessageById(messageId).complete();
+		
 		this.channelId=channelId;
 		this.messageId=messageId;
 		constructReactionPairs(guild, argumentText);
@@ -67,26 +71,28 @@ public class ReactionRoleMessage {
 		}
 	}
 
-	private void sendMessageWithReactions(MessageChannel channel, Message message) throws IllegalArgumentException{
+	public CompletableFuture<Message> sendMessageWithReactions(MessageChannel channel) throws IllegalArgumentException{
 		
-		CompletableFuture<Message> queuedMessage=channel.sendMessage(message).submit();
+		CompletableFuture<Message> queuedMessage=channel.sendMessage(msg).submit();
 		
-		queuedMessage.whenComplete((msg, staging) -> {
+		return queuedMessage.whenComplete((message, staging) -> {
 			reactionPairs.forEach(pair -> {
 				EmoteWrapper emote=pair.getLeft();
 				
 				if(emote.isUnicode()) {
-					msg.addReaction(emote.getId()).queue();
+					message.addReaction(emote.getId()).queue();
 				}
 				else {
 					Emote customEmote=channel.getJDA().getEmoteById(emote.getId());
 					if(customEmote!=null) {
-						msg.addReaction(customEmote).queue();
+						message.addReaction(customEmote).queue();
 					}
 				}
 			});
-			messageId=msg.getIdLong();
+			messageId=message.getIdLong();
 		});
+		
+		
 	}
 	
 	private MessageEmbed embed(String text, int color, MessageChannel channel) {
