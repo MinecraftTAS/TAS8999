@@ -1,6 +1,7 @@
 package de.pfannekuchen.tasdiscordbot.reactionroles;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -11,20 +12,41 @@ import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageChannel;
 import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.exceptions.HierarchyException;
 import net.dv8tion.jda.internal.utils.tuple.Pair;
 
 public class ReactionRoleMessage {
 
-	private long messageId;
+	private long channelId;
 	
-	private long guildId;
+	private long messageId;
 	
 	private List<Pair<EmoteWrapper, RoleWrapper>> reactionPairs=new ArrayList<>();
 	
 	private int color;
 	
 	
-	public ReactionRoleMessage(Guild guild, MessageChannel channel, String argumentText, int color) throws IllegalArgumentException{
+	public ReactionRoleMessage(Guild guild, MessageChannel channel, String argumentText, int color) throws Exception{
+
+		constructReactionPairs(guild, argumentText);
+		this.color=color;
+		
+		this.channelId=channel.getIdLong();
+		
+		Message msg=new MessageBuilder().setEmbeds(embed(argumentText, color, channel)).build();
+		sendMessageWithReactions(channel, msg);
+	}
+	
+	public ReactionRoleMessage(Guild guild, long channelId, long messageId, String argumentText, int color) {
+		MessageChannel channel=(MessageChannel) guild.getGuildChannelById(channelId);
+		channel.retrieveMessageById(messageId).queue(msg ->{}, failure -> {});
+		this.channelId=channelId;
+		this.messageId=messageId;
+		constructReactionPairs(guild, argumentText);
+		this.color=color;
+	}
+	
+	private void constructReactionPairs(Guild guild, String argumentText) {
 		String[] args=argumentText.split(",");
 		
 		for (String arg : args) {
@@ -35,20 +57,16 @@ public class ReactionRoleMessage {
 			
 			RoleWrapper role=new RoleWrapper(guild, argPairs[1]);
 			
+			if(!guild.getBotRole().canInteract(guild.getRoleById(role.getId()))) {
+				throw new HierarchyException("The bot doesn't have access to this role: "+role);
+			}
+			
 			Pair<EmoteWrapper, RoleWrapper> emoteRole = Pair.of(emote, role);
 			
 			reactionPairs.add(emoteRole);
 		}
-		
-		this.color=color;
-		
-		this.guildId=guild.getIdLong();
-		
-		Message msg=new MessageBuilder().setEmbeds(embed(argumentText, color, channel)).build();
-		
-		sendMessageWithReactions(channel, msg);
 	}
-	
+
 	private void sendMessageWithReactions(MessageChannel channel, Message message) throws IllegalArgumentException{
 		
 		CompletableFuture<Message> queuedMessage=channel.sendMessage(message).submit();
@@ -100,10 +118,6 @@ public class ReactionRoleMessage {
 		return color;
 	}
 	
-	public long getGuildId() {
-		return guildId;
-	}
-	
 	public boolean containsEmote(String emoteId) {
 		for(Pair<EmoteWrapper, RoleWrapper> pair : reactionPairs) {
 			if(pair.getLeft().getId().equals(emoteId)) {
@@ -120,5 +134,22 @@ public class ReactionRoleMessage {
 			}
 		}
 		return "";
+	}
+	
+	@Override
+	public String toString() {
+		String out="";
+		
+		out=out.concat(Long.toString(messageId)+"|"+Long.toString(channelId)+"|");
+		
+		for (Iterator<Pair<EmoteWrapper, RoleWrapper>> iterator = reactionPairs.iterator(); iterator.hasNext();) {
+			Pair<EmoteWrapper, RoleWrapper> pair = iterator.next();
+			String seperator=iterator.hasNext() ? "," : "|";
+			out=out.concat(pair.getLeft()+" "+pair.getRight()+seperator);
+		}
+		
+		out=out.concat(Integer.toString(color));
+		
+		return out;
 	}
 }

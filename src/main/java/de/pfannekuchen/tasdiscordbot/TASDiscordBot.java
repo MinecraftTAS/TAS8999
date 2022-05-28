@@ -1,9 +1,5 @@
 package de.pfannekuchen.tasdiscordbot;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -14,30 +10,29 @@ import javax.security.auth.login.LoginException;
 
 import de.pfannekuchen.tasdiscordbot.parser.CommandParser;
 import de.pfannekuchen.tasdiscordbot.reactionroles.EmoteWrapper;
-import de.pfannekuchen.tasdiscordbot.reactionroles.ReactionRoleMessage;
 import de.pfannekuchen.tasdiscordbot.reactionroles.ReactionRoles;
+import de.pfannekuchen.tasdiscordbot.util.SpamProtection;
 import de.pfannekuchen.tasdiscordbot.util.Util;
 import emoji4j.EmojiUtils;
-import de.pfannekuchen.tasdiscordbot.util.SpamProtection;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
 import net.dv8tion.jda.api.entities.Role;
-import net.dv8tion.jda.api.entities.TextChannel;
-import net.dv8tion.jda.api.events.interaction.SlashCommandEvent;
+import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
+import net.dv8tion.jda.api.events.message.MessageDeleteEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
-import net.dv8tion.jda.api.events.message.guild.GenericGuildMessageEvent;
-import net.dv8tion.jda.api.events.message.priv.GenericPrivateMessageEvent;
 import net.dv8tion.jda.api.events.message.react.MessageReactionAddEvent;
 import net.dv8tion.jda.api.events.message.react.MessageReactionRemoveEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.CommandData;
+import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.requests.restaction.CommandListUpdateAction;
 import net.dv8tion.jda.api.utils.MemberCachePolicy;
+import net.dv8tion.jda.internal.interactions.CommandDataImpl;
 
 public class TASDiscordBot extends ListenerAdapter implements Runnable {
 
@@ -47,7 +42,7 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 	private final ArrayList<CommandParser> commands;
 	private final SpamProtection protecc=new SpamProtection();
 	
-	private final ReactionRoles rr=new ReactionRoles(0x05808e);
+	private final ReactionRoles reactionroles;
 	
 //	@Override
 //	public void onGenericPrivateMessage(GenericPrivateMessageEvent event) {
@@ -128,7 +123,7 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 					if(raw.startsWith("!debug")) {
 						String[] split=raw.split(" ", 2);
 						try {
-							rr.addNewMessage(event.getGuild(), event.getChannel(), split[1]);
+							reactionroles.addNewMessage(event.getGuild(), event.getChannel(), split[1]);
 						} catch (Exception e) {
 							Util.sendErrorMessage(event.getChannel(), e);
 							e.printStackTrace();
@@ -144,10 +139,37 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 	}
 	
 	@Override
-	public void onSlashCommand(SlashCommandEvent event) {
+	public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
 		for (CommandParser cmd : commands) 
 			if (cmd.getCommand().equalsIgnoreCase(event.getName())) 
 				event.reply(new MessageBuilder().setEmbeds(cmd.run(event.getTextChannel(), event.getUser())).build()).complete();
+		
+		if(event.getName().equals("reactionrole")) {
+			if(event.getCommandPath().equals("reactionrole/add")) {
+				
+				if(!Util.hasEditPerms(event.getMember())) {
+					event.reply("You do not have the correct permissions!").submit().whenComplete((hook, throwable) ->{
+						hook.deleteOriginal().queueAfter(5, TimeUnit.SECONDS);
+					});
+					return;
+				}
+				
+				event.deferReply().submit().whenComplete((hook, throwable) ->{
+					try {
+						reactionroles.addNewMessage(event.getGuild(), event.getChannel(), event.getOption("arguments").getAsString());
+					} catch (Exception e) {
+						Util.sendErrorMessage(event.getChannel(), e);
+						e.printStackTrace();
+					}
+					hook.deleteOriginal().queue();
+				});
+			}
+		}
+	}
+	
+	@Override
+	public void onMessageDelete(MessageDeleteEvent event) {
+		reactionroles.removeMessage(event.getGuild(), event.getMessageIdLong());
 	}
 	
 	@Override
@@ -162,12 +184,13 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 
 			ReactionEmote reactionEmote = event.getReactionEmote();
 
-			String roleId = rr.getRole(event.getMessageIdLong(), EmoteWrapper.getReactionEmoteId(reactionEmote));
+			String roleId = reactionroles.getRole(event.getGuild(), event.getMessageIdLong(), EmoteWrapper.getReactionEmoteId(reactionEmote));
 			
 			if(!roleId.isEmpty()) {
 				Guild guild=event.getGuild();
 				Role role=guild.getRoleById(roleId);
-				guild.addRoleToMember(event.getMember(), role).queue();;
+				guild.addRoleToMember(event.getMember(), role).queue();
+					
 			}
 			else if (EmoteWrapper.getReactionEmoteId(reactionEmote).equals(EmojiUtils.emojify(":x:"))) {
 
@@ -179,7 +202,6 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 						}
 					}
 				});
-
 			}
 		}
 	}
@@ -190,7 +212,7 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 
 			ReactionEmote reactionEmote = event.getReactionEmote();
 
-			String roleId = rr.getRole(event.getMessageIdLong(), EmoteWrapper.getReactionEmoteId(reactionEmote));
+			String roleId = reactionroles.getRole(event.getGuild(), event.getMessageIdLong(), EmoteWrapper.getReactionEmoteId(reactionEmote));
 			
 			if(!roleId.isEmpty()) {
 				Guild guild=event.getGuild();
@@ -213,6 +235,7 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 		this.blacklist = Arrays.asList(this.configuration.getProperty("blacklist").split(";"));
 		this.commands = new ArrayList<CommandParser>();
 		instance=this;
+		this.reactionroles=new ReactionRoles(jda.getGuilds(), 0x05808e);
 	}
 	
 	public static TASDiscordBot getBot() {
@@ -230,14 +253,26 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 			for (int i = 0; i < commands.length; i++) {
 				CommandParser cmd;
 				this.commands.add(cmd = CommandParser.parseMessage(commands[i], configuration.getProperty(commands[i], "No command registered!")));
-				updater.addCommands(new CommandData(cmd.getCommand(), configuration.getProperty(commands[i] + "description", "Does not have a description")));
+				updater.addCommands(new CommandDataImpl(cmd.getCommand(), configuration.getProperty(commands[i] + "description", "Does not have a description")));
+				
 				System.out.println("[TAS8999] Successfully registered a new command");
 			}
+			
+			CommandDataImpl reactionRoleCommand=new CommandDataImpl("reactionrole", "Adds a reactionrole message to the channel");
+			
+			SubcommandData addSubCommand=new SubcommandData("add", "Add a new reaction role");
+			addSubCommand.addOption(OptionType.STRING, "arguments", "The emotes and roles to add");
+			
+			reactionRoleCommand.addSubcommands(addSubCommand);
+			
+			updater.addCommands(reactionRoleCommand);
 			updater.queue();
 		}
+		
+		
 	}
 	
-	public JDA getJda() {
+	public JDA getJDA() {
 		return jda;
 	}
 }

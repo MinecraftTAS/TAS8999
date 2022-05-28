@@ -14,10 +14,9 @@ repositories {
 }
 
 dependencies {
-	implementation group: 'net.dv8tion', name: 'JDA', version: '4.3.0_339'
-	implementation group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.3'
-	compile group: 'com.kcthota', name: 'emoji4j', version: '5.0'
-	testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: '5.8.2'
+	implementation group: 'net.dv8tion', name: 'JDA', version: '5.0.0-alpha.12'
+	implementation group: 'com.kcthota', name: 'emoji4j', version: '5.0'
+	implementation group: 'commons-io', name: 'commons-io', version: '2.11.0'
 }
 
 build.dependsOn(shadowJar)

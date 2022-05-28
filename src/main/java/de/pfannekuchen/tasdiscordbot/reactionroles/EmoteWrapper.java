@@ -47,7 +47,7 @@ public class EmoteWrapper {
 		if (isUnicode()) {
 			return id;
 		} else {
-			return TASDiscordBot.getBot().getJda().getEmoteById(id).getId();
+			return TASDiscordBot.getBot().getJDA().getEmoteById(id).getId();
 		}
 	}
 
@@ -58,7 +58,7 @@ public class EmoteWrapper {
 
 	public static boolean isEmoteAvailable(String emoteId) {
 		if (!EmojiUtils.isEmoji(emoteId)) {
-			return TASDiscordBot.getBot().getJda().getEmoteById(extractId(emoteId)) != null;
+			return TASDiscordBot.getBot().getJDA().getEmoteById(extractId(emoteId)) != null;
 		} else {
 			return true;
 		}

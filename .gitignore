@@ -17,6 +17,8 @@ out/
 .properties
 *.properties
 
+reactionroles/
+
 # JDA stuff
 dv8tion/
 iwebpp/

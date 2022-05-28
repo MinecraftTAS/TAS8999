@@ -65,6 +65,14 @@ public class Util {
 		return member.hasPermission(Permission.MESSAGE_MANAGE);
 	}
 	
+	public static boolean hasAdminPerms(Member member) {
+		return member.hasPermission(Permission.ADMINISTRATOR);
+	}
+	
+	public static boolean hasIntegrationPerms(Member member) {
+		return member.hasPermission(Permission.MANAGE_WEBHOOKS);
+	}
+	
 	public static boolean hasBotReactedWith(Message msg, String emote) {
 		for(MessageReaction reaction : msg.getReactions()) {
 			ReactionEmote rEmote=reaction.getReactionEmote();
