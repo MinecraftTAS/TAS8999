@@ -5,10 +5,12 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 
 import org.apache.commons.io.FileUtils;
 
+import de.pfannekuchen.tasdiscordbot.util.Util;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageChannel;
@@ -54,15 +56,23 @@ public class ReactionRoles {
 	}
 
 	private List<ReactionRoleMessage> readMessages(Guild guild, File file) throws IOException {
-		
 			List<ReactionRoleMessage> guildMessages=new ArrayList<>();
 			List<String> lines=FileUtils.readLines(file, StandardCharsets.UTF_8);
 			for (String line : lines) {
 				String[] split=line.split("\\|");
 				
 				ReactionRoleMessage newmessage;
+				
+				long messageId=Long.parseLong(split[0]);
+				
+				long channelId=Long.parseLong(split[1]);
+				
+				String argText=split[2];
+				
+				int color = Integer.parseInt(split[3]);
+				
 				try {
-					newmessage=new ReactionRoleMessage(guild, Long.parseLong(split[1]), Long.parseLong(split[0]), split[2], Integer.parseInt(split[3]));
+					newmessage=new ReactionRoleMessage(guild, channelId, argText, color, messageId);
 				}catch (Exception e) {
 					continue;
 				}
@@ -82,10 +92,73 @@ public class ReactionRoles {
 	}
 
 	public void addNewMessage(Guild guild, MessageChannel channel, String text) throws Exception {
-		ReactionRoleMessage newMessage=new ReactionRoleMessage(guild, channel, text, color);
-		newMessage.sendMessageWithReactions(channel).whenComplete((msg, throwable) ->{
+		System.out.println(String.format("[RR] Adding new message with arguments: %s", text));
+		if(text.isEmpty()) {
+			throw new IllegalArgumentException("The arguments can't be empty");
+		}
+		
+		ReactionRoleMessage newMessage=new ReactionRoleMessage(guild, channel.getIdLong(), text, color);
+		channel.sendMessage(newMessage.getMessage()).submit().whenComplete((msg, throwable) ->{
+			newMessage.getReactions().forEach(emote -> {
+				if(emote.isUnicode()) {
+					msg.addReaction(emote.getId()).queue();
+				}else {
+					msg.addReaction(emote.getEmote()).queue();
+				}
+			});
+			newMessage.setMessageId(msg.getIdLong());
 			allMessages.get(guild.getIdLong()).add(newMessage);
-			save(guild);
+		});
+	}
+	
+	public void editMessage(Guild guild, MessageChannel channel, long messageId, String text) throws Exception {
+		
+		
+		ReactionRoleMessage newMessage = new ReactionRoleMessage(guild, channel.getIdLong(), text, color, messageId);
+		
+		
+		channel.retrieveMessageById(messageId).submit().whenComplete((msg, throwable) ->{
+			if(!Util.isThisUserThisBot(msg.getAuthor())) {
+				return;
+			}
+			//Remove the reactions
+			msg.getReactions().forEach(reaction -> {
+				msg.removeReaction(EmoteWrapper.getReactionEmoteId(reaction.getReactionEmote())).queue();
+			});
+			
+			//Edit the message
+			
+			msg.editMessage(newMessage.getMessage()).queue();
+			
+			//Add the reactions
+			newMessage.getReactions().forEach(emote -> {
+				if(emote.isUnicode()) {
+					msg.addReaction(emote.getId()).queue();
+				}else {
+					msg.addReaction(emote.getEmote()).queue();
+				}
+			});
+			
+			//Update all messages
+			
+			List<ReactionRoleMessage> rrmessages = allMessages.get(guild.getIdLong());
+			
+			List<ReactionRoleMessage> copy = new ArrayList<>(rrmessages);
+			
+			for (Iterator<ReactionRoleMessage> iterator = copy.iterator(); iterator.hasNext();) {
+				ReactionRoleMessage reactionRoleMessage = (ReactionRoleMessage) iterator.next();
+				
+				if(reactionRoleMessage.getMessageId()==messageId) {
+					rrmessages.remove(reactionRoleMessage);
+					rrmessages.add(newMessage);
+					break;
+				}
+				
+				if(!iterator.hasNext()) {
+					rrmessages.add(newMessage);
+				}
+			}
+			
 		});
 	}
 	
@@ -110,6 +183,7 @@ public class ReactionRoles {
 		List<ReactionRoleMessage> messagesList = new ArrayList<ReactionRoleMessage>(allMessages.get(guild.getIdLong()));
 		for(ReactionRoleMessage message : messagesList) {
 			if(message.getMessageId()==messageToRemove) {
+				System.out.println(String.format("[RR] Removing message: %s", messageToRemove));
 				allMessages.get(guild.getIdLong()).remove(message);
 			}
 		}
@@ -129,4 +203,5 @@ public class ReactionRoles {
 	public void onShutDown(List<Guild> guilds) {
 		guilds.forEach(guild-> save(guild));
 	}
+
 }

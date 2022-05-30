@@ -5,6 +5,7 @@ import java.util.regex.Pattern;
 
 import de.pfannekuchen.tasdiscordbot.TASDiscordBot;
 import emoji4j.EmojiUtils;
+import net.dv8tion.jda.api.entities.Emote;
 import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
 
 /**
@@ -51,6 +52,7 @@ public class EmoteWrapper {
 		}
 	}
 
+	
 	@Override
 	public String toString() {
 		return printName;
@@ -81,5 +83,12 @@ public class EmoteWrapper {
 			return emoteIn.getEmote().getId();
 		}
 		return "";
+	}
+	
+	public Emote getEmote() {
+		if(!isUnicode) {
+			return TASDiscordBot.getBot().getJDA().getEmoteById(id);
+		}
+		return null;
 	}
 }

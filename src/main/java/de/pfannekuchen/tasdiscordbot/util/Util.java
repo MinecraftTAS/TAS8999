@@ -1,6 +1,7 @@
 package de.pfannekuchen.tasdiscordbot.util;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -33,6 +34,18 @@ public class Util {
 	
 	public static void sendDeletableMessage(MessageChannel channel, Message message) {
 		channel.sendMessage(message).queue(msg-> msg.addReaction(EmojiUtils.emojify(":x:")).queue());
+	}
+	
+	public static void sendSelfDestructingMessage(MessageChannel channel, String message, int time) {
+		channel.sendMessage(message).queue(msg -> {
+			msg.delete().queueAfter(time, TimeUnit.SECONDS);
+		});
+	}
+	
+	public static void sendSelfDestructingMessage(MessageChannel channel, Message message, int time) {
+		channel.sendMessage(message).queue(msg -> {
+			msg.delete().queueAfter(time, TimeUnit.SECONDS);
+		});
 	}
 	
 	public static void deleteMessage(Message msg) {
@@ -90,8 +103,16 @@ public class Util {
 	}
 
 	public static void sendErrorMessage(MessageChannel channel, Exception e) {
-		Message msg=new MessageBuilder(new EmbedBuilder().setTitle("Error ._.").addField(e.getClass().getSimpleName(), e.getMessage(), false).setColor(0xB90000)).build();
+		String message="The error has no message .__.";
+		if(e.getMessage()!=null) {
+			message=e.getMessage();
+		}
+		Message msg=new MessageBuilder(new EmbedBuilder().setTitle("Error ._.").addField(e.getClass().getSimpleName(), message, false).setColor(0xB90000)).build();
 		sendDeletableMessage(channel, msg);
 	}
-	
+
+	public static Message constructEmbedMessage(String title, String fieldtext, String text, int color) {
+		return new MessageBuilder(new EmbedBuilder().setTitle(title).addField(fieldtext, text, false).setColor(color)).build();
+	}
+
 }

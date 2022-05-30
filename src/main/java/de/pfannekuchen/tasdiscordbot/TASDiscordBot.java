@@ -14,10 +14,12 @@ import de.pfannekuchen.tasdiscordbot.reactionroles.ReactionRoles;
 import de.pfannekuchen.tasdiscordbot.util.SpamProtection;
 import de.pfannekuchen.tasdiscordbot.util.Util;
 import emoji4j.EmojiUtils;
+import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
@@ -28,6 +30,7 @@ import net.dv8tion.jda.api.events.message.react.MessageReactionRemoveEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.CommandData;
+import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.requests.restaction.CommandListUpdateAction;
@@ -42,6 +45,7 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 	private final ArrayList<CommandParser> commands;
 	private final SpamProtection protecc=new SpamProtection();
 	
+	private final int color=0x05808e;
 	private final ReactionRoles reactionroles;
 	
 //	@Override
@@ -144,27 +148,41 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 			if (cmd.getCommand().equalsIgnoreCase(event.getName())) 
 				event.reply(new MessageBuilder().setEmbeds(cmd.run(event.getTextChannel(), event.getUser())).build()).complete();
 		
-		if(event.getName().equals("reactionrole")) {
-			if(event.getCommandPath().equals("reactionrole/add")) {
-				
-				if(!Util.hasEditPerms(event.getMember())) {
-					event.reply("You do not have the correct permissions!").submit().whenComplete((hook, throwable) ->{
-						hook.deleteOriginal().queueAfter(5, TimeUnit.SECONDS);
-					});
-					return;
+		event.deferReply().queue(hook -> {
+			
+			if (event.getName().equals("reactionrole")) {
+				if (!Util.hasEditPerms(event.getMember())) {
+					Util.sendSelfDestructingMessage(event.getChannel(), "You do not have the correct permissions!",	5);
 				}
 				
-				event.deferReply().queue(hook ->{
-					try {
-						reactionroles.addNewMessage(event.getGuild(), event.getChannel(), event.getOption("arguments").getAsString());
-					} catch (Exception e) {
-						Util.sendErrorMessage(event.getChannel(), e);
-						e.printStackTrace();
+				if (event.getCommandPath().equals("reactionrole/add")) {
+
+					if(event.getOption("arguments")!=null) {		
+						try {
+							reactionroles.addNewMessage(event.getGuild(), event.getChannel(), event.getOption("arguments").getAsString());
+						} catch (Exception e) {
+							Util.sendErrorMessage(event.getChannel(), e);
+							e.printStackTrace();
+						}
+					}else {
+						Message msg=new MessageBuilder(new EmbedBuilder().setTitle("Usage:").addField("/reactionrole add `<reactionlist>`", "Example: /reactionrole add `:emote: @Role description, :secondemote: @SecondRole seconddescription`", false).setColor(color)).build();
+						Util.sendDeletableMessage(event.getChannel(), msg);
 					}
-					hook.deleteOriginal().queue();
-				});
+
+				} else if (event.getCommandPath().equals("reactionrole/edit")) {
+					if(event.getOption("messageid")!=null && event.getOption("arguments")!=null) {
+						try {
+							reactionroles.editMessage(event.getGuild(), event.getChannel(), event.getOption("messageid").getAsLong(), event.getOption("arguments").getAsString());
+						} catch (Exception e) {
+							Util.sendErrorMessage(event.getChannel(), e);
+							e.printStackTrace();
+						}
+					}
+				}
 			}
-		}
+			
+			hook.deleteOriginal().queue();
+		});
 	}
 	
 	@Override
@@ -189,7 +207,7 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 			if(!roleId.isEmpty()) {
 				Guild guild=event.getGuild();
 				Role role=guild.getRoleById(roleId);
-				guild.addRoleToMember(event.getMember(), role).queue();
+				guild.addRoleToMember(event.getUser(), role).queue();
 					
 			}
 			else if (EmoteWrapper.getReactionEmoteId(reactionEmote).equals(EmojiUtils.emojify(":x:"))) {
@@ -208,17 +226,20 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 	
 	@Override
 	public void onMessageReactionRemove(MessageReactionRemoveEvent event) {
-		ReactionEmote reactionEmote = event.getReactionEmote();
-
-		String roleId = reactionroles.getRole(event.getGuild(), event.getMessageIdLong(),
-				EmoteWrapper.getReactionEmoteId(reactionEmote));
-
-		if (!roleId.isEmpty()) {
-			Guild guild = event.getGuild();
-			Role role = guild.getRoleById(roleId);
-			guild.removeRoleFromMember(event.getMember(), role).queue();
-			;
-		}
+		event.retrieveUser().queue(user ->{
+			if (!Util.isThisUserThisBot(user)) {
+				ReactionEmote reactionEmote = event.getReactionEmote();
+		
+				String roleId = reactionroles.getRole(event.getGuild(), event.getMessageIdLong(),
+						EmoteWrapper.getReactionEmoteId(reactionEmote));
+		
+				if (!roleId.isEmpty()) {
+					Guild guild = event.getGuild();
+					Role role = guild.getRoleById(roleId);
+					guild.removeRoleFromMember(user, role).queue();
+				}
+			}
+		});
 	}
 
 	private static TASDiscordBot instance;
@@ -234,7 +255,7 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 		this.blacklist = Arrays.asList(this.configuration.getProperty("blacklist").split(";"));
 		this.commands = new ArrayList<CommandParser>();
 		instance=this;
-		this.reactionroles=new ReactionRoles(jda.getGuilds(), 0x05808e);
+		this.reactionroles=new ReactionRoles(jda.getGuilds(), color);
 	}
 	
 	public static TASDiscordBot getBot() {
@@ -262,9 +283,12 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 			SubcommandData addSubCommand=new SubcommandData("add", "Add a new reaction role");
 			addSubCommand.addOption(OptionType.STRING, "arguments", "The emotes and roles to add");
 			
+			SubcommandData editSubCommand=new SubcommandData("edit", "Edits an existing bot message");
+			editSubCommand.addOptions(new OptionData(OptionType.INTEGER, "messageid", "The messageid to edit"), new OptionData(OptionType.STRING, "arguments", "The emotes and roles to add"));
+			
 			reactionRoleCommand.setDefaultEnabled(false);
 			
-			reactionRoleCommand.addSubcommands(addSubCommand);
+			reactionRoleCommand.addSubcommands(addSubCommand, editSubCommand);
 			
 			updater.addCommands(reactionRoleCommand);
 			updater.queue();

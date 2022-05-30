@@ -3,46 +3,43 @@ package de.pfannekuchen.tasdiscordbot.reactionroles;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
+
+import de.pfannekuchen.tasdiscordbot.util.Triple;
 
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.MessageBuilder;
-import net.dv8tion.jda.api.entities.Emote;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageChannel;
-import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.exceptions.HierarchyException;
-import net.dv8tion.jda.internal.utils.tuple.Pair;
 
 public class ReactionRoleMessage {
 
 	private long channelId;
 	
-	private Message msg;
-	
 	private long messageId;
 	
-	private List<Pair<EmoteWrapper, RoleWrapper>> reactionPairs=new ArrayList<>();
+	private List<Triple<EmoteWrapper, String, RoleWrapper>> reactionPairs=new ArrayList<>();
 	
 	private int color;
 	
 	
-	public ReactionRoleMessage(Guild guild, MessageChannel channel, String argumentText, int color) throws Exception{
-
+	public ReactionRoleMessage(Guild guild, long channelId, String argumentText, int color) throws Exception{
 		constructReactionPairs(guild, argumentText);
 		this.color=color;
 		
-		this.channelId=channel.getIdLong();
-		
-		msg=new MessageBuilder().setEmbeds(embed(argumentText, color, channel)).build();
+		this.channelId=channelId;
 	}
 	
-	public ReactionRoleMessage(Guild guild, long channelId, long messageId, String argumentText, int color) throws Exception {
+	public ReactionRoleMessage(Guild guild, long channelId, String argumentText, int color, long messageId) throws Exception {
 		MessageChannel channel=(MessageChannel) guild.getGuildChannelById(channelId);
-		
-		//Test if message exists
-		channel.retrieveMessageById(messageId).complete();
+
+		// Test if message exists
+		try {
+			channel.retrieveMessageById(messageId).complete();
+		} catch (Exception e) {
+			throw new IllegalArgumentException("The specified message does not exist");
+		}
 		
 		this.channelId=channelId;
 		this.messageId=messageId;
@@ -55,47 +52,41 @@ public class ReactionRoleMessage {
 		
 		for (String arg : args) {
 			arg=arg.trim();
-			String[] argPairs=arg.split(" ", 2);
+			String[] argTriples=arg.split(" ", 3);
 			
-			EmoteWrapper emote=new EmoteWrapper(argPairs[0]);
+			EmoteWrapper emote=new EmoteWrapper(argTriples[0]);
 			
-			RoleWrapper role=new RoleWrapper(guild, argPairs[1]);
+			RoleWrapper role=new RoleWrapper(guild, argTriples[1]);
+			
+			String description=argTriples[2];
 			
 			if(!guild.getBotRole().canInteract(guild.getRoleById(role.getId()))) {
 				throw new HierarchyException("The bot doesn't have access to this role: "+role);
 			}
 			
-			Pair<EmoteWrapper, RoleWrapper> emoteRole = Pair.of(emote, role);
-			
+			Triple<EmoteWrapper, String, RoleWrapper> emoteRole = Triple.of(emote, description, role);
+	
 			reactionPairs.add(emoteRole);
 		}
 	}
 
-	public CompletableFuture<Message> sendMessageWithReactions(MessageChannel channel) throws IllegalArgumentException{
-		
-		CompletableFuture<Message> queuedMessage=channel.sendMessage(msg).submit();
-		
-		return queuedMessage.whenComplete((message, staging) -> {
-			reactionPairs.forEach(pair -> {
-				EmoteWrapper emote=pair.getLeft();
-				
-				if(emote.isUnicode()) {
-					message.addReaction(emote.getId()).queue();
-				}
-				else {
-					Emote customEmote=channel.getJDA().getEmoteById(emote.getId());
-					if(customEmote!=null) {
-						message.addReaction(customEmote).queue();
-					}
-				}
-			});
-			messageId=message.getIdLong();
-		});
-		
-		
+	public Message getMessage() throws IllegalArgumentException{
+		return new MessageBuilder(embed()).build();
 	}
 	
-	private MessageEmbed embed(String text, int color, MessageChannel channel) {
+	public List<EmoteWrapper> getReactions(){
+		List<EmoteWrapper> out=new ArrayList<>();
+		reactionPairs.forEach(triple -> {
+			out.add(triple.getLeft());
+		});
+		return out;
+	}
+	
+	public void setMessageId(long messageId) {
+		this.messageId=messageId;
+	}
+	
+	private EmbedBuilder embed() {
 		EmbedBuilder builder=new EmbedBuilder();
 		
 		if(reactionPairs.size()>1) {
@@ -106,14 +97,14 @@ public class ReactionRoleMessage {
 		}
 		String roleList="";
 		
-		for(Pair<EmoteWrapper, RoleWrapper> pair: reactionPairs) {
-			roleList=roleList.concat(String.format("%s : %s \n", pair.getLeft(), pair.getRight()));
+		for(Triple<EmoteWrapper, String, RoleWrapper> triple: reactionPairs) {
+			roleList=roleList.concat(String.format("%s -> %s: %s\n", triple.getLeft(), triple.getRight(), triple.getMiddle()));
 		}
 		
 		builder.addField("", roleList, false);
 		builder.setColor(color);
 		
-		return builder.build();
+		return builder;
 	}
 	
 	public long getMessageId() {
@@ -125,8 +116,8 @@ public class ReactionRoleMessage {
 	}
 	
 	public boolean containsEmote(String emoteId) {
-		for(Pair<EmoteWrapper, RoleWrapper> pair : reactionPairs) {
-			if(pair.getLeft().getId().equals(emoteId)) {
+		for(Triple<EmoteWrapper, String, RoleWrapper> triple : reactionPairs) {
+			if(triple.getLeft().getId().equals(emoteId)) {
 				return true;
 			}
 		}
@@ -134,9 +125,9 @@ public class ReactionRoleMessage {
 	}
 	
 	public String getRole(String emoteId) {
-		for(Pair<EmoteWrapper, RoleWrapper> pair : reactionPairs) {
-			if(pair.getLeft().getId().equals(emoteId)) {
-				return pair.getRight().getId();
+		for(Triple<EmoteWrapper, String, RoleWrapper> triple : reactionPairs) {
+			if(triple.getLeft().getId().equals(emoteId)) {
+				return triple.getRight().getId();
 			}
 		}
 		return "";
@@ -148,10 +139,10 @@ public class ReactionRoleMessage {
 		
 		out=out.concat(Long.toString(messageId)+"|"+Long.toString(channelId)+"|");
 		
-		for (Iterator<Pair<EmoteWrapper, RoleWrapper>> iterator = reactionPairs.iterator(); iterator.hasNext();) {
-			Pair<EmoteWrapper, RoleWrapper> pair = iterator.next();
+		for (Iterator<Triple<EmoteWrapper, String, RoleWrapper>> iterator = reactionPairs.iterator(); iterator.hasNext();) {
+			Triple<EmoteWrapper, String, RoleWrapper> triple = iterator.next();
 			String seperator=iterator.hasNext() ? "," : "|";
-			out=out.concat(pair.getLeft()+" "+pair.getRight()+seperator);
+			out=out.concat(triple.getLeft()+" "+triple.getRight()+" "+triple.getMiddle()+seperator);
 		}
 		
 		out=out.concat(Integer.toString(color));
