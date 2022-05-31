@@ -20,7 +20,7 @@ public class EmoteWrapper {
 
 	private String id = "";
 
-	private static final Pattern pattern = Pattern.compile("<:.*:(\\d+)>");
+	private static final Pattern pattern = Pattern.compile("<a?:.*:(\\d+)>");
 
 	private String printName = "";
 
