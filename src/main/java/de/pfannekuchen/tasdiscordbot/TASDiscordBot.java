@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
 
 import javax.security.auth.login.LoginException;
 
@@ -29,7 +28,6 @@ import net.dv8tion.jda.api.events.message.react.MessageReactionAddEvent;
 import net.dv8tion.jda.api.events.message.react.MessageReactionRemoveEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
-import net.dv8tion.jda.api.interactions.commands.build.CommandData;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 import net.dv8tion.jda.api.requests.GatewayIntent;
@@ -118,26 +116,15 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 			e.printStackTrace();
 		}
 		
-		try {
-			event.getChannel().retrieveMessageById(event.getMessageId()).submit().whenComplete((msg, stage) -> {
-				if(Util.hasRole(msg.getMember(), "Debug")) {
-					
-					String raw=msg.getContentRaw();
-					
-					if(raw.startsWith("!debug")) {
-						String[] split=raw.split(" ", 2);
-						try {
-							reactionroles.addNewMessage(event.getGuild(), event.getChannel(), split[1]);
-						} catch (Exception e) {
-							Util.sendErrorMessage(event.getChannel(), e);
-							e.printStackTrace();
-						}
-					}
+		event.getChannel().retrieveMessageById(event.getMessageId()).submit().whenComplete((msg, stage) -> {
+			if (Util.hasRole(msg.getMember(), "Debug")) {
+
+				String raw = msg.getContentRaw();
+
+				if (raw.startsWith("!debug")) {
 				}
-			});
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
+			}
+		});
 		
 		super.onMessageReceived(event);
 	}
@@ -148,15 +135,21 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 			if (cmd.getCommand().equalsIgnoreCase(event.getName())) 
 				event.reply(new MessageBuilder().setEmbeds(cmd.run(event.getTextChannel(), event.getUser())).build()).complete();
 		
+		//Display the "Thinking" message
 		event.deferReply().queue(hook -> {
 			
+			//Rectionrole part
 			if (event.getName().equals("reactionrole")) {
+				
+				//Check for edit permissions
 				if (!Util.hasEditPerms(event.getMember())) {
 					Util.sendSelfDestructingMessage(event.getChannel(), "You do not have the correct permissions!",	5);
 				}
 				
+				//Reactionrole add
 				if (event.getCommandPath().equals("reactionrole/add")) {
 
+					//Check if the arguments are null
 					if(event.getOption("arguments")!=null) {		
 						try {
 							reactionroles.addNewMessage(event.getGuild(), event.getChannel(), event.getOption("arguments").getAsString());
@@ -164,18 +157,27 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 							Util.sendErrorMessage(event.getChannel(), e);
 							e.printStackTrace();
 						}
+						
+					//Display usage
 					}else {
 						Message msg=new MessageBuilder(new EmbedBuilder().setTitle("Usage:").addField("/reactionrole add `<reactionlist>`", "Example: /reactionrole add `:emote: @Role description, :secondemote: @SecondRole seconddescription`", false).setColor(color)).build();
 						Util.sendDeletableMessage(event.getChannel(), msg);
 					}
+					
+				//Reactionrole edit
 				} else if (event.getCommandPath().equals("reactionrole/edit")) {
+					
 					if(event.getOption("messageid")!=null && event.getOption("arguments")!=null) {
 						try {
 							reactionroles.editMessage(event.getGuild(), event.getChannel(), event.getOption("messageid").getAsLong(), event.getOption("arguments").getAsString());
 						} catch (Exception e) {
 							Util.sendErrorMessage(event.getChannel(), e);
 							e.printStackTrace();
-						}
+						} 
+					// Display usage
+					}else if(event.getOption("messageid")==null && event.getOption("arguments")==null) {
+						Message msg=new MessageBuilder(new EmbedBuilder().setTitle("Usage:").addField("/reactionrole edit `<messageid>` `<reactionlist>`", "Example: /reactionrole edit `373167715969531904` `:emote: @Role description, :secondemote: @SecondRole seconddescription`", false).setColor(color)).build();
+						Util.sendDeletableMessage(event.getChannel(), msg);
 					}
 				}
 			}
@@ -186,7 +188,9 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 	
 	@Override
 	public void onMessageDelete(MessageDeleteEvent event) {
-		reactionroles.removeMessage(event.getGuild(), event.getMessageIdLong());
+		if(event.isFromGuild()) {
+			reactionroles.removeMessage(event.getGuild(), event.getMessageIdLong());
+		}
 	}
 	
 	@Override

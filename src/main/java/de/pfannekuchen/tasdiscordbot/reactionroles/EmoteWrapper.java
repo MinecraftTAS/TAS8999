@@ -9,7 +9,7 @@ import net.dv8tion.jda.api.entities.Emote;
 import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
 
 /**
- * Combines emojis and custom emotes
+ * A wrapper/helper for discord emojis and emotes.
  * 
  * @author Scribble
  *
@@ -20,6 +20,9 @@ public class EmoteWrapper {
 
 	private String id = "";
 
+	/**
+	 * The regex for the emote.
+	 */
 	private static final Pattern pattern = Pattern.compile("<a?:.*:(\\d+)>");
 
 	private String printName = "";
@@ -44,6 +47,10 @@ public class EmoteWrapper {
 		return isUnicode;
 	}
 
+	/**
+	 * Returns either the unicode or the id of the emote
+	 * @return
+	 */
 	public String getId() {
 		if (isUnicode()) {
 			return id;
@@ -58,6 +65,11 @@ public class EmoteWrapper {
 		return printName;
 	}
 
+	/**
+	 * Checks if an emote is available to the bot
+	 * @param emoteId Emote id to check
+	 * @return If the emote is available to the bot
+	 */
 	public static boolean isEmoteAvailable(String emoteId) {
 		if (!EmojiUtils.isEmoji(emoteId)) {
 			return TASDiscordBot.getBot().getJDA().getEmoteById(extractId(emoteId)) != null;
@@ -66,6 +78,11 @@ public class EmoteWrapper {
 		}
 	}
 
+	/**
+	 * Extracts the raw id from custom and animated emotes
+	 * @param idIn a:endportal1:968224841473855549
+	 * @return 968224841473855549
+	 */
 	private static String extractId(String idIn) {
 		Matcher matcher = pattern.matcher(idIn);
 		if (matcher.find()) {
@@ -75,6 +92,11 @@ public class EmoteWrapper {
 		}
 	}
 	
+	/**
+	 * Returns the id from this reaction emote
+	 * @param emoteIn The Reaction emote
+	 * @return If the reaction emote is an emoji, returns the unicode, else the emote id
+	 */
 	public static String getReactionEmoteId(ReactionEmote emoteIn) {
 		if(emoteIn.isEmoji()) {
 			return emoteIn.getEmoji();

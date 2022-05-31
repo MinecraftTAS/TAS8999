@@ -11,23 +11,47 @@ import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.exceptions.HierarchyException;
 
+/**
+ * A single message storing its reactions
+ * @author Scribble
+ *
+ */
 public class ReactionRoleMessage {
 
 	private long channelId;
 	
 	private long messageId;
 	
-	private List<Triple<EmoteWrapper, String, RoleWrapper>> reactionPairs=new ArrayList<>();
+	/**
+	 * A list of an emote, a description and a role.
+	 */
+	private List<Triple<EmoteWrapper, String, RoleWrapper>> reactionTriples=new ArrayList<>();
 	
 	private int color;
 	
-	
+	/**
+	 * Used to create a new Reaction Role message. Use this if you don't know the messageId of the message
+	 * @param guild The guild where this is stored
+	 * @param channelId The channel where this is stored
+	 * @param argumentText The text used to construct {@link #reactionTriples}
+	 * @param color The color of the embed
+	 * @throws Exception
+	 */
 	public ReactionRoleMessage(Guild guild, long channelId, String argumentText, int color) throws Exception{
 		constructReactionPairs(guild, argumentText);
 		this.color=color;
 		this.channelId=channelId;
 	}
 	
+	/**
+	 * Used to link to an existing reaction role message in the discord. Use this if you know the messageId
+	 * @param guild The guild where this is stored
+	 * @param channelId The channel where this is stored
+	 * @param argumentText The text used to construct {@link #reactionTriples}
+	 * @param color The color of the embed
+	 * @param messageId The messageId to track
+	 * @throws Exception
+	 */
 	public ReactionRoleMessage(Guild guild, long channelId, String argumentText, int color, long messageId) throws Exception {
 		this.channelId=channelId;
 		this.messageId=messageId;
@@ -54,7 +78,7 @@ public class ReactionRoleMessage {
 			
 			Triple<EmoteWrapper, String, RoleWrapper> emoteRole = Triple.of(emote, description, role);
 	
-			reactionPairs.add(emoteRole);
+			reactionTriples.add(emoteRole);
 		}
 	}
 
@@ -64,7 +88,7 @@ public class ReactionRoleMessage {
 	
 	public List<EmoteWrapper> getReactions(){
 		List<EmoteWrapper> out=new ArrayList<>();
-		reactionPairs.forEach(triple -> {
+		reactionTriples.forEach(triple -> {
 			out.add(triple.getLeft());
 		});
 		return out;
@@ -74,10 +98,14 @@ public class ReactionRoleMessage {
 		this.messageId=messageId;
 	}
 	
+	/**
+	 * Constructs an embedbuilder
+	 * @return The emved builder
+	 */
 	private EmbedBuilder embed() {
 		EmbedBuilder builder=new EmbedBuilder();
 		
-		if(reactionPairs.size()>1) {
+		if(reactionTriples.size()>1) {
 			builder.setTitle("React with the following emote(s) to get the role(s)");
 		} 
 		else {
@@ -85,7 +113,7 @@ public class ReactionRoleMessage {
 		}
 		String roleList="";
 		
-		for(Triple<EmoteWrapper, String, RoleWrapper> triple: reactionPairs) {
+		for(Triple<EmoteWrapper, String, RoleWrapper> triple: reactionTriples) {
 			roleList=roleList.concat(String.format("%s -> %s: %s\n", triple.getLeft(), triple.getRight(), triple.getMiddle()));
 		}
 		
@@ -104,7 +132,7 @@ public class ReactionRoleMessage {
 	}
 	
 	public boolean containsEmote(String emoteId) {
-		for(Triple<EmoteWrapper, String, RoleWrapper> triple : reactionPairs) {
+		for(Triple<EmoteWrapper, String, RoleWrapper> triple : reactionTriples) {
 			if(triple.getLeft().getId().equals(emoteId)) {
 				return true;
 			}
@@ -113,7 +141,7 @@ public class ReactionRoleMessage {
 	}
 	
 	public String getRole(String emoteId) {
-		for(Triple<EmoteWrapper, String, RoleWrapper> triple : reactionPairs) {
+		for(Triple<EmoteWrapper, String, RoleWrapper> triple : reactionTriples) {
 			if(triple.getLeft().getId().equals(emoteId)) {
 				return triple.getRight().getId();
 			}
@@ -127,7 +155,7 @@ public class ReactionRoleMessage {
 		
 		out=out.concat(Long.toString(messageId)+"|"+Long.toString(channelId)+"|");
 		
-		for (Iterator<Triple<EmoteWrapper, String, RoleWrapper>> iterator = reactionPairs.iterator(); iterator.hasNext();) {
+		for (Iterator<Triple<EmoteWrapper, String, RoleWrapper>> iterator = reactionTriples.iterator(); iterator.hasNext();) {
 			Triple<EmoteWrapper, String, RoleWrapper> triple = iterator.next();
 			String seperator=iterator.hasNext() ? "," : "|";
 			out=out.concat(triple.getLeft()+" "+triple.getRight()+" "+triple.getMiddle()+seperator);
