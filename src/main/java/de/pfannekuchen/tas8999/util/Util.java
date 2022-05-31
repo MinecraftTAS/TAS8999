@@ -1,9 +1,10 @@
-package de.pfannekuchen.tasdiscordbot.util;
+package de.pfannekuchen.tas8999.util;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import emoji4j.EmojiUtils;
+import com.vdurmont.emoji.EmojiManager;
+
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.Permission;
@@ -41,7 +42,7 @@ public class Util {
 	 * @param message
 	 */
 	public static void sendDeletableMessage(MessageChannel channel, String message) {
-		channel.sendMessage(message).queue(msg-> msg.addReaction(EmojiUtils.emojify(":x:")).queue());
+		channel.sendMessage(message).queue(msg-> msg.addReaction(EmojiManager.getForAlias(":x:").getUnicode()).queue());
 	}
 	
 	/**
@@ -50,7 +51,7 @@ public class Util {
 	 * @param message
 	 */
 	public static void sendDeletableMessage(MessageChannel channel, Message message) {
-		channel.sendMessage(message).queue(msg-> msg.addReaction(EmojiUtils.emojify(":x:")).queue());
+		channel.sendMessage(message).queue(msg-> msg.addReaction(EmojiManager.getForAlias(":x:").getUnicode()).queue());
 	}
 	
 	/**

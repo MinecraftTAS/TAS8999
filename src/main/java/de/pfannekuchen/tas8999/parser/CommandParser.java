@@ -1,4 +1,4 @@
-package de.pfannekuchen.tasdiscordbot.parser;
+package de.pfannekuchen.tas8999.parser;
 
 import java.util.HashMap;
 import java.util.Map.Entry;

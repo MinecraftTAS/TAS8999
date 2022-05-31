@@ -1,4 +1,4 @@
-package de.pfannekuchen.tasdiscordbot.util;
+package de.pfannekuchen.tas8999.util;
 
 import java.util.ArrayList;
 import java.util.List;

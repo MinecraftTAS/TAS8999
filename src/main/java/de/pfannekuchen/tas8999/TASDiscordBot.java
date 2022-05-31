@@ -1,4 +1,4 @@
-package de.pfannekuchen.tasdiscordbot;
+package de.pfannekuchen.tas8999;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -7,12 +7,13 @@ import java.util.Properties;
 
 import javax.security.auth.login.LoginException;
 
-import de.pfannekuchen.tasdiscordbot.parser.CommandParser;
-import de.pfannekuchen.tasdiscordbot.reactionroles.EmoteWrapper;
-import de.pfannekuchen.tasdiscordbot.reactionroles.ReactionRoles;
-import de.pfannekuchen.tasdiscordbot.util.SpamProtection;
-import de.pfannekuchen.tasdiscordbot.util.Util;
-import emoji4j.EmojiUtils;
+import com.vdurmont.emoji.EmojiManager;
+
+import de.pfannekuchen.tas8999.parser.CommandParser;
+import de.pfannekuchen.tas8999.reactionroles.EmoteWrapper;
+import de.pfannekuchen.tas8999.reactionroles.ReactionRoles;
+import de.pfannekuchen.tas8999.util.SpamProtection;
+import de.pfannekuchen.tas8999.util.Util;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
@@ -213,12 +214,12 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 				guild.addRoleToMember(event.getUser(), role).queue();
 					
 			}
-			else if (EmoteWrapper.getReactionEmoteId(reactionEmote).equals(EmojiUtils.emojify(":x:"))) {
+			else if (EmoteWrapper.getReactionEmoteId(reactionEmote).equals(EmojiManager.getForAlias(":x:").getUnicode())) {
 
 				event.retrieveMessage().queue(msg -> {
 					if (Util.isThisUserThisBot(msg.getAuthor())) {
 
-						if (Util.hasBotReactedWith(msg, EmojiUtils.emojify(":x:"))) {
+						if (Util.hasBotReactedWith(msg, EmojiManager.getForAlias(":x:").getUnicode())) {
 							Util.deleteMessage(msg);
 						}
 					}
