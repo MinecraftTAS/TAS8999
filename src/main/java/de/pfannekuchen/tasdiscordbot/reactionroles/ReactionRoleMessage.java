@@ -5,12 +5,10 @@ import java.util.Iterator;
 import java.util.List;
 
 import de.pfannekuchen.tasdiscordbot.util.Triple;
-
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Message;
-import net.dv8tion.jda.api.entities.MessageChannel;
 import net.dv8tion.jda.api.exceptions.HierarchyException;
 
 public class ReactionRoleMessage {
@@ -27,20 +25,10 @@ public class ReactionRoleMessage {
 	public ReactionRoleMessage(Guild guild, long channelId, String argumentText, int color) throws Exception{
 		constructReactionPairs(guild, argumentText);
 		this.color=color;
-		
 		this.channelId=channelId;
 	}
 	
 	public ReactionRoleMessage(Guild guild, long channelId, String argumentText, int color, long messageId) throws Exception {
-		MessageChannel channel=(MessageChannel) guild.getGuildChannelById(channelId);
-
-		// Test if message exists
-		try {
-			channel.retrieveMessageById(messageId).complete();
-		} catch (Exception e) {
-			throw new IllegalArgumentException("The specified message does not exist");
-		}
-		
 		this.channelId=channelId;
 		this.messageId=messageId;
 		constructReactionPairs(guild, argumentText);

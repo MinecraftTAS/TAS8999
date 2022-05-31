@@ -10,10 +10,15 @@ import java.util.List;
 
 import org.apache.commons.io.FileUtils;
 
+import de.pfannekuchen.tasdiscordbot.TASDiscordBot;
 import de.pfannekuchen.tasdiscordbot.util.Util;
+import net.dv8tion.jda.api.entities.ChannelType;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageChannel;
+import net.dv8tion.jda.api.entities.MessageReaction;
+import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.exceptions.ErrorHandler;
 
 /**
  * Reaction roles
@@ -72,10 +77,12 @@ public class ReactionRoles {
 				int color = Integer.parseInt(split[3]);
 				
 				try {
+					guild.getChannelById(TextChannel.class, channelId).retrieveMessageById(messageId);
 					newmessage=new ReactionRoleMessage(guild, channelId, argText, color, messageId);
 				}catch (Exception e) {
 					continue;
 				}
+				
 				guildMessages.add(newmessage);
 			}
 		return guildMessages;
@@ -112,22 +119,20 @@ public class ReactionRoles {
 	}
 	
 	public void editMessage(Guild guild, MessageChannel channel, long messageId, String text) throws Exception {
-		
-		
+		System.out.println("[RR] Editing message: "+messageId);
 		ReactionRoleMessage newMessage = new ReactionRoleMessage(guild, channel.getIdLong(), text, color, messageId);
 		
-		
 		channel.retrieveMessageById(messageId).submit().whenComplete((msg, throwable) ->{
+			
 			if(!Util.isThisUserThisBot(msg.getAuthor())) {
 				return;
 			}
 			//Remove the reactions
-			msg.getReactions().forEach(reaction -> {
-				msg.removeReaction(EmoteWrapper.getReactionEmoteId(reaction.getReactionEmote())).queue();
-			});
+			for (MessageReaction reaction : msg.getReactions()) {
+				reaction.removeReaction(TASDiscordBot.getBot().getJDA().getSelfUser()).queue();
+			}
 			
 			//Edit the message
-			
 			msg.editMessage(newMessage.getMessage()).queue();
 			
 			//Add the reactions
@@ -140,7 +145,6 @@ public class ReactionRoles {
 			});
 			
 			//Update all messages
-			
 			List<ReactionRoleMessage> rrmessages = allMessages.get(guild.getIdLong());
 			
 			List<ReactionRoleMessage> copy = new ArrayList<>(rrmessages);

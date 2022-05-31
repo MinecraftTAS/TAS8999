@@ -168,7 +168,6 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 						Message msg=new MessageBuilder(new EmbedBuilder().setTitle("Usage:").addField("/reactionrole add `<reactionlist>`", "Example: /reactionrole add `:emote: @Role description, :secondemote: @SecondRole seconddescription`", false).setColor(color)).build();
 						Util.sendDeletableMessage(event.getChannel(), msg);
 					}
-
 				} else if (event.getCommandPath().equals("reactionrole/edit")) {
 					if(event.getOption("messageid")!=null && event.getOption("arguments")!=null) {
 						try {
@@ -284,7 +283,7 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 			addSubCommand.addOption(OptionType.STRING, "arguments", "The emotes and roles to add");
 			
 			SubcommandData editSubCommand=new SubcommandData("edit", "Edits an existing bot message");
-			editSubCommand.addOptions(new OptionData(OptionType.INTEGER, "messageid", "The messageid to edit"), new OptionData(OptionType.STRING, "arguments", "The emotes and roles to add"));
+			editSubCommand.addOptions(new OptionData(OptionType.STRING, "messageid", "The messageid to edit"), new OptionData(OptionType.STRING, "arguments", "The emotes and roles to add"));
 			
 			reactionRoleCommand.setDefaultEnabled(false);
 			
