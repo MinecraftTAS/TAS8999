@@ -10,17 +10,14 @@ import javax.security.auth.login.LoginException;
 import com.vdurmont.emoji.EmojiManager;
 
 import de.pfannekuchen.tas8999.parser.CommandParser;
-import de.pfannekuchen.tas8999.reactionroles.EmoteWrapper;
 import de.pfannekuchen.tas8999.reactionroles.ReactionRoles;
 import de.pfannekuchen.tas8999.util.SpamProtection;
 import de.pfannekuchen.tas8999.util.Util;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
-import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.Message;
-import net.dv8tion.jda.api.entities.MessageReaction.ReactionEmote;
+import net.dv8tion.jda.api.entities.MessageReaction;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.message.MessageDeleteEvent;
@@ -28,12 +25,15 @@ import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.events.message.react.MessageReactionAddEvent;
 import net.dv8tion.jda.api.events.message.react.MessageReactionRemoveEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.interactions.commands.DefaultMemberPermissions;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.requests.restaction.CommandListUpdateAction;
 import net.dv8tion.jda.api.utils.MemberCachePolicy;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
+import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 import net.dv8tion.jda.internal.interactions.CommandDataImpl;
 
 public class TASDiscordBot extends ListenerAdapter implements Runnable {
@@ -134,10 +134,12 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 	public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
 		for (CommandParser cmd : commands) 
 			if (cmd.getCommand().equalsIgnoreCase(event.getName())) 
-				event.reply(new MessageBuilder().setEmbeds(cmd.run(event.getTextChannel(), event.getUser())).build()).complete();
+				event.reply(new MessageCreateBuilder().setEmbeds(cmd.run(event.getMessageChannel(), event.getUser())).build()).complete();
 		
 		//Display the "Thinking" message
 		event.deferReply().queue(hook -> {
+			
+			String commandPath = event.getFullCommandName().replace(" ", "/");
 			
 			//Rectionrole part
 			if (event.getName().equals("reactionrole")) {
@@ -148,7 +150,7 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 				}
 				
 				//Reactionrole add
-				if (event.getCommandPath().equals("reactionrole/add")) {
+				if (commandPath.equals("reactionrole/add")) {
 
 					//Check if the arguments are null
 					if(event.getOption("arguments")!=null) {		
@@ -161,12 +163,14 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 						
 					//Display usage
 					}else {
-						Message msg=new MessageBuilder(new EmbedBuilder().setTitle("Usage:").addField("/reactionrole add `<reactionlist>`", "Example: /reactionrole add `:emote: @Role description, :secondemote: @SecondRole seconddescription`", false).setColor(color)).build();
+						MessageCreateData msg=new MessageCreateBuilder()
+								.setEmbeds(new EmbedBuilder().setTitle("Usage:").addField("/reactionrole add `<reactionlist>`", "Example: /reactionrole add `:emote: @Role description, :secondemote: @SecondRole seconddescription`", false).setColor(color).build())
+								.build();
 						Util.sendDeletableMessage(event.getChannel(), msg);
 					}
 					
 				//Reactionrole edit
-				} else if (event.getCommandPath().equals("reactionrole/edit")) {
+				} else if (commandPath.equals("reactionrole/edit")) {
 					
 					if(event.getOption("messageid")!=null && event.getOption("arguments")!=null) {
 						try {
@@ -177,7 +181,9 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 						} 
 					// Display usage
 					}else if(event.getOption("messageid")==null && event.getOption("arguments")==null) {
-						Message msg=new MessageBuilder(new EmbedBuilder().setTitle("Usage:").addField("/reactionrole edit `<messageid>` `<reactionlist>`", "Example: /reactionrole edit `373167715969531904` `:emote: @Role description, :secondemote: @SecondRole seconddescription`", false).setColor(color)).build();
+						MessageCreateData msg=new MessageCreateBuilder()
+								.setEmbeds(new EmbedBuilder().setTitle("Usage:").addField("/reactionrole edit `<messageid>` `<reactionlist>`", "Example: /reactionrole edit `373167715969531904` `:emote: @Role description, :secondemote: @SecondRole seconddescription`", false).setColor(color).build())
+								.build();
 						Util.sendDeletableMessage(event.getChannel(), msg);
 					}
 				}
@@ -197,16 +203,16 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 	@Override
 	public void onMessageReactionAdd(MessageReactionAddEvent event) {
 		if (event.getUser().getIdLong() == 464843391771869185L
-				&& event.getTextChannel().getName().equalsIgnoreCase(configuration.getProperty("rconchannel"))
+				&& event.getChannel().getName().equalsIgnoreCase(configuration.getProperty("rconchannel"))
 				&& event.retrieveMessage().complete().getEmbeds().size() >= 1) {
 			event.getChannel().deleteMessageById(event.getMessageId()).complete();
 		}
 
 		if (!Util.isThisUserThisBot(event.getUser())) {
 
-			ReactionEmote reactionEmote = event.getReactionEmote();
+			MessageReaction reactionEmote = event.getReaction();
 
-			String roleId = reactionroles.getRole(event.getGuild(), event.getMessageIdLong(), EmoteWrapper.getReactionEmoteId(reactionEmote));
+			String roleId = reactionroles.getRole(event.getGuild(), event.getMessageIdLong(), reactionEmote.getEmoji().getFormatted());
 			
 			if(!roleId.isEmpty()) {
 				Guild guild=event.getGuild();
@@ -214,7 +220,7 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 				guild.addRoleToMember(event.getUser(), role).queue();
 					
 			}
-			else if (EmoteWrapper.getReactionEmoteId(reactionEmote).equals(EmojiManager.getForAlias(":x:").getUnicode())) {
+			else if (reactionEmote.getEmoji().asUnicode().equals(EmojiManager.getForAlias(":x:").getUnicode())) {
 
 				event.retrieveMessage().queue(msg -> {
 					if (Util.isThisUserThisBot(msg.getAuthor())) {
@@ -232,10 +238,10 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 	public void onMessageReactionRemove(MessageReactionRemoveEvent event) {
 		event.retrieveUser().queue(user ->{
 			if (!Util.isThisUserThisBot(user)) {
-				ReactionEmote reactionEmote = event.getReactionEmote();
+				MessageReaction reactionEmote = event.getReaction();
 		
 				String roleId = reactionroles.getRole(event.getGuild(), event.getMessageIdLong(),
-						EmoteWrapper.getReactionEmoteId(reactionEmote));
+						reactionEmote.getMessageId());
 		
 				if (!roleId.isEmpty()) {
 					Guild guild = event.getGuild();
@@ -290,7 +296,7 @@ public class TASDiscordBot extends ListenerAdapter implements Runnable {
 			SubcommandData editSubCommand=new SubcommandData("edit", "Edits an existing bot message");
 			editSubCommand.addOptions(new OptionData(OptionType.STRING, "messageid", "The messageid to edit"), new OptionData(OptionType.STRING, "arguments", "The emotes and roles to add"));
 			
-			reactionRoleCommand.setDefaultEnabled(false);
+			reactionRoleCommand.setDefaultPermissions(DefaultMemberPermissions.DISABLED);
 			
 			reactionRoleCommand.addSubcommands(addSubCommand, editSubCommand);
 			
