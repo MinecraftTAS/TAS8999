@@ -1,4 +1,4 @@
-package de.pfannekuchen.tasdiscordbot.core;
+package de.pfannekuchen.tas8999.core;
 
 import java.io.DataInputStream;
 import java.io.EOFException;
@@ -10,7 +10,7 @@ import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
-import de.pfannekuchen.tasdiscordbot.core.ex.MalformedPacketException;
+import de.pfannekuchen.tas8999.core.ex.MalformedPacketException;
 
 public class RconPacket {
 	

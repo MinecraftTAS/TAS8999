@@ -1,4 +1,4 @@
-package de.pfannekuchen.tasdiscordbot.main;
+package de.pfannekuchen.tas8999.main;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -10,7 +10,7 @@ import java.util.Properties;
 
 import javax.security.auth.login.LoginException;
 
-import de.pfannekuchen.tasdiscordbot.TASDiscordBot;
+import de.pfannekuchen.tas8999.TASDiscordBot;
 
 public class Main {
 

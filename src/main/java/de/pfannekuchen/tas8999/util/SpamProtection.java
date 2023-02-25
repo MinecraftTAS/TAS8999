@@ -1,12 +1,12 @@
-package de.pfannekuchen.tasdiscordbot.util;
+package de.pfannekuchen.tas8999.util;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Message;
-import net.dv8tion.jda.api.entities.MessageChannel;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 
 public class SpamProtection {
 	SpamProtectionThread spamthread = new SpamProtectionThread();
@@ -29,7 +29,7 @@ public class SpamProtection {
 				if (data.channelchanges == 3) {
 					Guild guild = msg.getGuild();
 					System.out.println("[TAS8999] Trying to kick " + msgAuthor.getName());
-					guild.kick(msg.getMember(), "Spam protection").queue();
+					guild.kick(msg.getMember()).reason("Spam protection").queue();
 					data.pruneMsgs();
 					suspiciousUsers.remove(data);
 				}

@@ -1,4 +1,4 @@
-package de.pfannekuchen.tasdiscordbot.core.ex;
+package de.pfannekuchen.tas8999.core.ex;
 
 public class AuthenticationException extends Exception {
 

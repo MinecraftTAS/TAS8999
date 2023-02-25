@@ -1,4 +1,4 @@
-package de.pfannekuchen.tasdiscordbot.parser;
+package de.pfannekuchen.tas8999.parser;
 
 import java.util.HashMap;
 import java.util.Map.Entry;
@@ -7,8 +7,8 @@ import java.util.regex.Pattern;
 
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.MessageEmbed;
-import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 
 public class CommandParser {
 
@@ -20,7 +20,7 @@ public class CommandParser {
 		this.command = command;
 	}
 	
-	public MessageEmbed run(TextChannel channel, User caller) {
+	public MessageEmbed run(MessageChannel channel, User caller) {
 		/* Get the Message to print out, by going through every exception */
 		String message = defaultMessage;
 		for (Entry<String, String> exception : exceptions.entrySet()) 

@@ -1,11 +1,11 @@
-package de.pfannekuchen.tasdiscordbot.core;
+package de.pfannekuchen.tas8999.core;
 
 import java.io.IOException;
 import java.net.Socket;
 import java.nio.charset.Charset;
 import java.util.Random;
 
-import de.pfannekuchen.tasdiscordbot.core.ex.AuthenticationException;
+import de.pfannekuchen.tas8999.core.ex.AuthenticationException;
 
 public class Rcon {
 	
