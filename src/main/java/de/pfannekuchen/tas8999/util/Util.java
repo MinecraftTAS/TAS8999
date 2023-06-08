@@ -5,7 +5,7 @@ import java.util.concurrent.TimeUnit;
 
 import com.vdurmont.emoji.EmojiManager;
 
-import de.pfannekuchen.tas8999.TASDiscordBot;
+import de.pfannekuchen.tas8999.TAS8999;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
@@ -112,6 +112,10 @@ public class Util {
 
 		return false;
 	}
+	
+	public static boolean hasDebugRole(Member member) {
+		return hasRole(member, "Debug");
+	}
 
 	/**
 	 * @param user The user from an event or an author
@@ -122,7 +126,7 @@ public class Util {
 	}
 
 	public static boolean isThisUserThisBot(long user) {
-		return TASDiscordBot.getBot().getJDA().getSelfUser().getIdLong() == user;
+		return TAS8999.getBot().getJDA().getSelfUser().getIdLong() == user;
 	}
 
 	/**
