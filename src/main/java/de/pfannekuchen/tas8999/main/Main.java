@@ -10,7 +10,7 @@ import java.util.Properties;
 
 import javax.security.auth.login.LoginException;
 
-import de.pfannekuchen.tas8999.TASDiscordBot;
+import de.pfannekuchen.tas8999.TAS8999;
 
 public class Main {
 
@@ -23,7 +23,7 @@ public class Main {
 		configuration.load(new FileInputStream(propertiesFile));
 		
 		/* Create and run Bot */
-		final TASDiscordBot bot = new TASDiscordBot(configuration);
+		final TAS8999 bot = new TAS8999(configuration.getProperty("token"));
 		new Thread(bot).run();
 	}
 
