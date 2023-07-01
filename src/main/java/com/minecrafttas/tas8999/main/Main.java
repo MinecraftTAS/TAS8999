@@ -1,4 +1,4 @@
-package de.pfannekuchen.tas8999.main;
+package com.minecrafttas.tas8999.main;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -10,7 +10,7 @@ import java.util.Properties;
 
 import javax.security.auth.login.LoginException;
 
-import de.pfannekuchen.tas8999.TAS8999;
+import com.minecrafttas.tas8999.TAS8999;
 
 public class Main {
 

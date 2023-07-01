@@ -1,11 +1,11 @@
-package de.pfannekuchen.tas8999.util;
+package com.minecrafttas.tas8999.util;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import com.minecrafttas.tas8999.TAS8999;
 import com.vdurmont.emoji.EmojiManager;
 
-import de.pfannekuchen.tas8999.TAS8999;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
