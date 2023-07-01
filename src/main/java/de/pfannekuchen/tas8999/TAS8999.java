@@ -1,7 +1,5 @@
 package de.pfannekuchen.tas8999;
 
-import java.io.File;
-
 import javax.security.auth.login.LoginException;
 
 import org.slf4j.Logger;
@@ -45,18 +43,18 @@ public class TAS8999 extends ListenerAdapter implements Runnable {
 	private static final Logger LOGGER = LoggerFactory.getLogger("TAS8999");
 	private final CommandHandler commandHandler;
 	
-	private final int color=0x05808e;
+	public final int color=0x05808e;
 	private final ReactionRoles reactionroles;
 	
 	public TAS8999(String token) throws InterruptedException, LoginException {
 		final JDABuilder builder = JDABuilder.createDefault(token)
 				.setMemberCachePolicy(MemberCachePolicy.ALL)
-                .enableIntents(GatewayIntent.GUILD_MEMBERS)
+                .enableIntents(GatewayIntent.GUILD_MEMBERS, GatewayIntent.MESSAGE_CONTENT)
                 .addEventListeners(this);
 		this.jda = builder.build();
 		this.jda.awaitReady();
 		instance=this;
-		commandHandler = new CommandHandler("CommandHandler", new File("commands"), LOGGER);
+		commandHandler = new CommandHandler(LOGGER);
 		this.reactionroles=new ReactionRoles(jda.getGuilds(), color);
 	}
 	
@@ -85,17 +83,38 @@ public class TAS8999 extends ListenerAdapter implements Runnable {
 		
 		CommandDataImpl reactionRoleCommand=new CommandDataImpl("reactionrole", "Adds a reactionrole message to the channel");
 		
-		SubcommandData addSubCommand=new SubcommandData("add", "Add a new reaction role");
-		addSubCommand.addOption(OptionType.STRING, "arguments", "The emotes and roles to add");
+		SubcommandData upsertSubCommand=new SubcommandData("add", "Add a new reaction role");
+		upsertSubCommand.addOption(OptionType.STRING, "arguments", "The emotes and roles to add");
 		
-		SubcommandData editSubCommand=new SubcommandData("edit", "Edits an existing bot message");
-		editSubCommand.addOptions(new OptionData(OptionType.STRING, "messageid", "The messageid to edit"), new OptionData(OptionType.STRING, "arguments", "The emotes and roles to add"));
+		SubcommandData renameSubCommand=new SubcommandData("edit", "Edits an existing bot message");
+		renameSubCommand.addOptions(new OptionData(OptionType.STRING, "messageid", "The messageid to edit"), new OptionData(OptionType.STRING, "arguments", "The emotes and roles to add"));
 		
 		reactionRoleCommand.setDefaultPermissions(DefaultMemberPermissions.enabledFor(Permission.MODERATE_MEMBERS));
 		
-		reactionRoleCommand.addSubcommands(addSubCommand, editSubCommand);
+		reactionRoleCommand.addSubcommands(upsertSubCommand, renameSubCommand);
 		
-		updater.addCommands(reactionRoleCommand);
+		
+		
+		CommandDataImpl customCommand = new CommandDataImpl("customcommand", "Command for adding and upating customcommands");
+		
+		upsertSubCommand = new SubcommandData("upsert", "Adds or updates a new custom command");
+		renameSubCommand = new SubcommandData("rename", "Renames a custom command");
+		SubcommandData removeSubCommand = new SubcommandData("remove", "Removes a custom command");
+		
+		OptionData commandNameOption = new OptionData(OptionType.STRING, "name", "The custom command name", true);
+		OptionData commandNewNameOption = new OptionData(OptionType.STRING, "newname", "The new custom command name", true);
+		OptionData commandDescriptionOption = new OptionData(OptionType.STRING, "description", "The custom command description", true);
+		OptionData commandBodyOption = new OptionData(OptionType.STRING, "messageid", "The messageid of the commandtext", true);
+		
+		upsertSubCommand.addOptions(commandNameOption, commandDescriptionOption, commandBodyOption);
+		renameSubCommand.addOptions(commandNameOption, commandNewNameOption);
+		removeSubCommand.addOptions(commandNameOption);
+		
+		customCommand.addSubcommands(upsertSubCommand, renameSubCommand, removeSubCommand);
+		
+		customCommand.setDefaultPermissions(DefaultMemberPermissions.DISABLED);
+		
+		updater.addCommands(/*reactionRoleCommand, */customCommand);
 		updater.queue();
 	}
 
@@ -119,7 +138,7 @@ public class TAS8999 extends ListenerAdapter implements Runnable {
 		}
 		
 		event.getChannel().retrieveMessageById(event.getMessageId()).submit().whenComplete((msg, stage) -> {
-			if (Util.hasDebugRole(msg.getMember())) {
+			if (Util.hasAdminPerms(msg.getMember())) {
 
 				String raw = msg.getContentRaw();
 
@@ -135,61 +154,90 @@ public class TAS8999 extends ListenerAdapter implements Runnable {
 	public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
 		
 		
-		//Display the "Thinking" message
-		event.deferReply().queue(hook -> {
-			
-			String commandPath = event.getFullCommandName().replace(" ", "/");
-			
-			//Rectionrole part
-			if (event.getName().equals("reactionrole")) {
-				
-				//Check for edit permissions
-				if (!Util.hasEditPerms(event.getMember())) {
-					Util.sendSelfDestructingMessage(event.getChannel(), "You do not have the correct permissions!",	5);
+//		// Display the "Thinking" message
+//		event.deferReply().queue(hook -> {
+//			
+//			String commandPath = event.getFullCommandName().replace(" ", "/");
+//			
+//			// Rectionrole part
+//			if (event.getName().equals("reactionrole")) {
+//				
+//				//Check for edit permissions
+//				if (!Util.hasEditPerms(event.getMember())) {
+//					Util.sendSelfDestructingMessage(event.getChannel(), "You do not have the correct permissions!",	5);
+//				}
+//				
+//				// Reactionrole add
+//				if (commandPath.equals("reactionrole/add")) {
+//
+//					// Check if the arguments are null
+//					if(event.getOption("arguments")!=null) {		
+//						try {
+//							reactionroles.addNewMessage(event.getGuild(), event.getChannel(), event.getOption("arguments").getAsString());
+//						} catch (Exception e) {
+//							Util.sendErrorMessage(event.getChannel(), e);
+//							e.printStackTrace();
+//						}
+//						
+//					// Display usage
+//					}else {
+//						MessageCreateData msg=new MessageCreateBuilder()
+//								.setEmbeds(new EmbedBuilder().setTitle("Usage:").addField("/reactionrole add `<reactionlist>`", "Example: /reactionrole add `:emote: @Role description, :secondemote: @SecondRole seconddescription`", false).setColor(color).build())
+//								.build();
+//						Util.sendDeletableMessage(event.getChannel(), msg);
+//					}
+//					
+//				// Reactionrole edit
+//				} else if (commandPath.equals("reactionrole/edit")) {
+//					
+//					if(event.getOption("messageid")!=null && event.getOption("arguments")!=null) {
+//						try {
+//							reactionroles.editMessage(event.getGuild(), event.getChannel(), event.getOption("messageid").getAsLong(), event.getOption("arguments").getAsString());
+//						} catch (Exception e) {
+//							Util.sendErrorMessage(event.getChannel(), e);
+//							e.printStackTrace();
+//						} 
+//					// Display usage
+//					}else if(event.getOption("messageid")==null && event.getOption("arguments")==null) {
+//						MessageCreateData msg=new MessageCreateBuilder()
+//								.setEmbeds(new EmbedBuilder().setTitle("Usage:").addField("/reactionrole edit `<messageid>` `<reactionlist>`", "Example: /reactionrole edit `373167715969531904` `:emote: @Role description, :secondemote: @SecondRole seconddescription`", false).setColor(color).build())
+//								.build();
+//						Util.sendDeletableMessage(event.getChannel(), msg);
+//					}
+//				}
+//			}
+//			
+//			hook.deleteOriginal().queue();
+//		});
+		
+		String commandPath = event.getFullCommandName().replace(" ", "/");
+		
+		if(!Util.hasAdminPerms(event.getMember())) {
+			Util.sendErrorReply(event, "Error", "Commands are currently disabled", true);
+			return;
+		}
+		
+		try {
+			if (commandHandler.executeCommand(event, event.getName())) {
+				return;
+			}else if(commandPath.startsWith("customcommand/")) {
+				if(commandPath.equals("customcommand/upsert")) {
+					event.getChannel().retrieveMessageById(event.getOption("messageid").getAsString()).queue(message ->{
+						commandHandler.upsertCommand(event, event.getOption("name").getAsString(), event.getOption("description").getAsString(), message.getContentRaw());
+					});
 				}
-				
-				//Reactionrole add
-				if (commandPath.equals("reactionrole/add")) {
-
-					//Check if the arguments are null
-					if(event.getOption("arguments")!=null) {		
-						try {
-							reactionroles.addNewMessage(event.getGuild(), event.getChannel(), event.getOption("arguments").getAsString());
-						} catch (Exception e) {
-							Util.sendErrorMessage(event.getChannel(), e);
-							e.printStackTrace();
-						}
-						
-					//Display usage
-					}else {
-						MessageCreateData msg=new MessageCreateBuilder()
-								.setEmbeds(new EmbedBuilder().setTitle("Usage:").addField("/reactionrole add `<reactionlist>`", "Example: /reactionrole add `:emote: @Role description, :secondemote: @SecondRole seconddescription`", false).setColor(color).build())
-								.build();
-						Util.sendDeletableMessage(event.getChannel(), msg);
-					}
-					
-				//Reactionrole edit
-				} else if (commandPath.equals("reactionrole/edit")) {
-					
-					if(event.getOption("messageid")!=null && event.getOption("arguments")!=null) {
-						try {
-							reactionroles.editMessage(event.getGuild(), event.getChannel(), event.getOption("messageid").getAsLong(), event.getOption("arguments").getAsString());
-						} catch (Exception e) {
-							Util.sendErrorMessage(event.getChannel(), e);
-							e.printStackTrace();
-						} 
-					// Display usage
-					}else if(event.getOption("messageid")==null && event.getOption("arguments")==null) {
-						MessageCreateData msg=new MessageCreateBuilder()
-								.setEmbeds(new EmbedBuilder().setTitle("Usage:").addField("/reactionrole edit `<messageid>` `<reactionlist>`", "Example: /reactionrole edit `373167715969531904` `:emote: @Role description, :secondemote: @SecondRole seconddescription`", false).setColor(color).build())
-								.build();
-						Util.sendDeletableMessage(event.getChannel(), msg);
-					}
+				else if(commandPath.equals("customcommand/rename")) {
+					commandHandler.renameCommand(event, event.getOption("name").getAsString(), event.getOption("newname").getAsString());
+				}
+				else if(commandPath.equals("customcommand/remove")) {
+					String name = event.getOption("name").getAsString();
+					commandHandler.removeCommand(event, name);
 				}
 			}
-			
-			hook.deleteOriginal().queue();
-		});
+		} catch(Exception e) {
+			Util.sendErrorReply(event, e, false);
+			e.printStackTrace();
+		}
 	}
 	
 	@Override

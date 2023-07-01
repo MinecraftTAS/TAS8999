@@ -16,9 +16,9 @@ import net.dv8tion.jda.api.entities.Guild;
 public class Storable {
 	private String name;
 	
-	protected final HashMap<Long, Properties> guildProperties = new HashMap<>();
+	private final HashMap<Long, Properties> guildProperties = new HashMap<>();
 	protected final File storageDir;
-	private final Logger LOGGER;
+	protected final Logger LOGGER;
 	
 	public Storable(String name, File directory, Logger logger) {
 		this.name = name;
@@ -61,11 +61,11 @@ public class Storable {
 		}
 	}
 	
-	protected Properties load(Guild guild, File submissionFile) {
+	protected Properties load(Guild guild, File file) {
 		LOGGER.info("{{}} Loading {}", guild.getName(), name);
 		Properties guildConfig = new Properties();
 		try {
-			FileInputStream fis = new FileInputStream(submissionFile);
+			FileInputStream fis = new FileInputStream(file);
 			guildConfig.loadFromXML(fis);
 			fis.close();
 		} catch (InvalidPropertiesFormatException e) {
@@ -78,7 +78,36 @@ public class Storable {
 		return guildConfig;
 	}
 	
-	protected void remove(Guild guild) {
+	protected boolean containsKey(Guild guild, String key) {
+		return getGuildProperty(guild).containsKey(key);
+	}
+	
+	protected String get(Guild guild, String key) {
+		return getGuildProperty(guild).getProperty(key);
+	}
+	
+	protected void put(Guild guild, String key, String value) {
+		Properties prop = getGuildProperty(guild);
+		prop.put(key, value);
+		putGuildProperty(guild, prop);
+	}
+	
+	protected void remove(Guild guild, String key) {
+		Properties prop = getGuildProperty(guild);
+		prop.remove(key);
+		putGuildProperty(guild, prop);
+	}
+	
+	protected Properties getGuildProperty(Guild guild) {
+		return guildProperties.getOrDefault(guild.getIdLong(), new Properties());
+	}
+	
+	protected void putGuildProperty(Guild guild, Properties property) {
+		guildProperties.put(guild.getIdLong(), property);
+		save(guild, property);
+	}
+	
+	protected void removeGuildProperty(Guild guild) {
 		File submissionFile = new File(storageDir, guild.getId() + ".xml");
 		if (submissionFile.exists()) {
 			submissionFile.delete();
