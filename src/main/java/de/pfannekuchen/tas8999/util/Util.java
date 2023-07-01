@@ -11,17 +11,22 @@ import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.Message.Attachment;
+import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.MessageReaction;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.entities.emoji.Emoji;
+import net.dv8tion.jda.api.entities.sticker.StickerItem;
+import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
+import net.dv8tion.jda.api.events.interaction.command.GenericCommandInteractionEvent;
+import net.dv8tion.jda.api.events.interaction.component.EntitySelectInteractionEvent;
 import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 
 public class Util {
 
-	private static String deletableEmoji = EmojiManager.getForAlias(":x:").getUnicode();
+	public final static String deletableEmoji = EmojiManager.getForAlias(":x:").getUnicode();
 
 	/**
 	 * Sends a message to the channel
@@ -64,7 +69,19 @@ public class Util {
 	public static void sendDeletableMessage(MessageChannel channel, MessageCreateData message) {
 		channel.sendMessage(message).queue(msg -> msg.addReaction(Emoji.fromUnicode(deletableEmoji)).queue());
 	}
-
+	
+	public static void sendDeletableReply(GenericCommandInteractionEvent channel, String newmsg) {
+		channel.reply(newmsg).queue(hook -> {
+			hook.retrieveOriginal().queue(msg -> msg.addReaction(Emoji.fromUnicode(deletableEmoji)).queue());
+		});
+	}
+	
+	public static void sendDeletableReply(GenericCommandInteractionEvent channel, MessageCreateData newmsg) {
+		channel.reply(newmsg).queue(hook -> {
+			hook.retrieveOriginal().queue(msg -> msg.addReaction(Emoji.fromUnicode(deletableEmoji)).queue());
+		});
+	}
+	
 	/**
 	 * Sends a message that is being removed after a specified amount of time
 	 * 
@@ -75,6 +92,18 @@ public class Util {
 	public static void sendSelfDestructingMessage(MessageChannel channel, String message, int time) {
 		channel.sendMessage(message).queue(msg -> {
 			msg.delete().queueAfter(time, TimeUnit.SECONDS);
+		});
+	}
+	
+	public static void sendSelfDestructingReply(GenericCommandInteractionEvent event, String message, int time) {
+		event.reply(message).queue(msg -> {
+			msg.deleteOriginal().queueAfter(time, TimeUnit.SECONDS);
+		});
+	}
+	
+	public static void sendSelfDestructingReply(GenericCommandInteractionEvent event, MessageCreateData message, int time) {
+		event.reply(message).queue(msg -> {
+			msg.deleteOriginal().queueAfter(time, TimeUnit.SECONDS);
 		});
 	}
 
@@ -111,10 +140,6 @@ public class Util {
 		}
 
 		return false;
-	}
-	
-	public static boolean hasDebugRole(Member member) {
-		return hasRole(member, "Debug");
 	}
 
 	/**
@@ -180,13 +205,7 @@ public class Util {
 	 * @param e
 	 */
 	public static void sendErrorMessage(MessageChannel channel, Exception e) {
-		String message = "The error has no message .__.";
-		if (e.getMessage() != null) {
-			message = e.getMessage();
-		}
-		MessageCreateData msg = new MessageCreateBuilder().addEmbeds(
-				new EmbedBuilder().setTitle("Error ._.")
-				.addField(e.getClass().getSimpleName(), message, false).setColor(0xB90000).build()).build();
+		MessageCreateData msg = constructErrorMessage(e);
 		sendDeletableMessage(channel, msg);
 	}
 
@@ -218,14 +237,56 @@ public class Util {
 			sendSelfDestructingMessage(channel, message, time);
 		});
 	}
+	
+	public static void sendErrorDirectMessage(User user, String title, String description) {
+		user.openPrivateChannel().queue(channel -> {
+			MessageCreateData msg = constructErrorMessage(title, description);
+			sendDeletableMessage(channel, msg);
+		});
+	}
+	
+	public static void sendErrorDirectMessage(User user, Exception exception) {
+		user.openPrivateChannel().queue(channel -> {
+			sendErrorMessage(channel, exception);
+		});
+	}
+	
+	public static void sendErrorReply(GenericCommandInteractionEvent event, Exception e, boolean ephermal) {
+		if(ephermal) {
+			sendReply(event, Util.constructErrorMessage(e), ephermal);
+		}else {
+			sendDeletableReply(event, Util.constructErrorMessage(e));
+		}
+	}
+	
+	public static void sendErrorReply(ModalInteractionEvent event, Exception e) {
+		sendReply(event, Util.constructErrorMessage(e), true);
+	}
+	
+
+	public static void sendDeletableReply(ModalInteractionEvent event, MessageCreateData constructErrorMessage) {
+		
+	}
+
+	public static void sendErrorReply(GenericCommandInteractionEvent event, String title, String description, boolean ephermal) {
+		if(ephermal) {
+			sendReply(event, Util.constructErrorMessage(title, description), ephermal);
+		}else {
+			sendDeletableReply(event, Util.constructErrorMessage(title, description));
+		}
+	}
 
 	public static MessageCreateData constructMessageWithAuthor(Message msg) {
 		return constructMessageWithAuthor(msg, "", msg.getContentRaw(), 0xFFFFFF);
 	}
 	
+	public static MessageCreateData constructMessageWithAuthor(Message msg, int color) {
+		return constructMessageWithAuthor(msg, "", msg.getContentRaw(), color);
+	}
+	
 	public static MessageCreateData constructMessageWithAuthor(Message msg, String title, String raw, int color) {
 		
-		MessageCreateBuilder mbuilder=new MessageCreateBuilder().addEmbeds(constructEmbedWithAuthor(msg, title, raw, color).build());
+		MessageCreateBuilder mbuilder=new MessageCreateBuilder().addEmbeds(constructEmbedWithAuthor(msg, title, raw, color, true).build());
 		
 		return mbuilder.build();
 	}
@@ -235,7 +296,7 @@ public class Util {
 		return mbuilder.build();
 	}
 
-	public static EmbedBuilder constructEmbedWithAuthor(Message msg, String title, String raw, int color) {
+	public static EmbedBuilder constructEmbedWithAuthor(Message msg, String title, String raw, int color, boolean image) {
 		EmbedBuilder builder = new EmbedBuilder().setAuthor(msg.getAuthor().getAsTag(), null, msg.getAuthor().getEffectiveAvatarUrl());
 		builder.setDescription(raw);
 		
@@ -245,14 +306,16 @@ public class Util {
 		builder.setColor(color);
 		
 		boolean flag=false;
-		for (Attachment attachment : msg.getAttachments()) {
-			String contentType=attachment.getContentType();
-			
-			if(contentType.contains("image/") && !flag) {
-				builder.setImage(attachment.getUrl());
-				flag=true;
-			} else
-				builder.addField("", attachment.getUrl(), false);
+		if(image) {
+			for (Attachment attachment : msg.getAttachments()) {
+				String contentType=attachment.getContentType();
+				
+				if(contentType.contains("image/") && !flag) {
+					builder.setImage(attachment.getUrl());
+					flag=true;
+				} else
+					builder.addField("", attachment.getUrl(), false);
+			}
 		}
 		
 		return builder;
@@ -260,10 +323,65 @@ public class Util {
 	
 	public static EmbedBuilder constructEmbedWithAuthor(User author, String title, String raw, int color) {
 		EmbedBuilder builder = new EmbedBuilder().setAuthor(author.getAsTag(), null, author.getEffectiveAvatarUrl());
-		builder.setTitle(title);
+		if(!title.isEmpty()) {
+			builder.setTitle(title);
+		}
 		builder.setDescription(raw);
 		builder.setColor(color);
 		return builder;
 	}
 	
+	public static MessageCreateData constructErrorMessage(Exception e) {
+		String message = "The error has no message .__.";
+		if (e.getMessage() != null) {
+			message = e.getMessage();
+		}
+		MessageCreateData msg = new MessageCreateBuilder().addEmbeds(
+				new EmbedBuilder().setTitle("Error ._.")
+				.addField(e.getClass().getSimpleName(), message, false).setColor(0xB90000).build()).build();
+		return msg;
+	}
+	
+	
+	public static MessageCreateData constructErrorMessage(String title, String description) {
+		MessageCreateData msg = new MessageCreateBuilder().addEmbeds(
+				new EmbedBuilder().setTitle(title)
+				.setDescription(description).setColor(0xB90000).build()).build();
+		return msg;
+	}
+
+	public static void sendReply(GenericCommandInteractionEvent event, String msg, boolean ephermal, MessageEmbed... embed) {
+		event.reply(msg).setEmbeds(embed).setEphemeral(ephermal).queue();
+	}
+
+	public static void sendReply(GenericCommandInteractionEvent event, MessageCreateData msg, boolean ephermal) {
+		event.reply(msg).setEphemeral(ephermal).queue();
+	}
+
+	public static void sendReply(GenericCommandInteractionEvent event, String msg, boolean ephermal) {
+		event.reply(msg).setEphemeral(ephermal).queue();
+	}
+
+	public static void sendReply(EntitySelectInteractionEvent event, String msg, boolean ephermal) {
+		event.reply(msg).setEphemeral(ephermal).queue();
+	}
+
+	public static MessageEmbed constructEmbed(String title, String description, int color) {
+		return new EmbedBuilder().setTitle(title).setDescription(description).setColor(color).build();
+	}
+	
+	public static void sendReply(ModalInteractionEvent event, MessageCreateData msg, boolean ephermal) {
+		event.reply(msg).setEphemeral(ephermal).queue();
+	}
+
+	public static String getAttachmentsAsString(Message msg) {
+		String out="";
+		for(Attachment attachment : msg.getAttachments()) {
+			out += "\n"+attachment.getUrl();
+		}
+		for(StickerItem sticker : msg.getStickers()) {
+			out += "\n"+sticker.getIconUrl();
+		}
+		return out;
+	}
 }
