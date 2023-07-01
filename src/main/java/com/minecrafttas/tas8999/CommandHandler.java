@@ -1,4 +1,4 @@
-package de.pfannekuchen.tas8999;
+package com.minecrafttas.tas8999;
 
 import java.io.File;
 import java.util.HashMap;
@@ -6,9 +6,10 @@ import java.util.Properties;
 
 import org.slf4j.Logger;
 
-import de.pfannekuchen.tas8999.util.MD2Embed;
-import de.pfannekuchen.tas8999.util.Storable;
-import de.pfannekuchen.tas8999.util.Util;
+import com.minecrafttas.tas8999.util.MD2Embed;
+import com.minecrafttas.tas8999.util.Storable;
+import com.minecrafttas.tas8999.util.Util;
+
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;

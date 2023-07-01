@@ -14,7 +14,7 @@ repositories {
     maven { url 'https://m2.dv8tion.net/releases' }
 }
 
-mainClassName = 'de.pfannekuchen.tas8999.main.Main'
+mainClassName = 'com.minecrafttas.tas8999.main.Main'
 
 
 dependencies {

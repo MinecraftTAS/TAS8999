@@ -1,15 +1,15 @@
-package de.pfannekuchen.tas8999;
+package com.minecrafttas.tas8999;
 
 import javax.security.auth.login.LoginException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.minecrafttas.tas8999.reactionroles.ReactionRoles;
+import com.minecrafttas.tas8999.util.SpamProtection;
+import com.minecrafttas.tas8999.util.Util;
 import com.vdurmont.emoji.EmojiManager;
 
-import de.pfannekuchen.tas8999.reactionroles.ReactionRoles;
-import de.pfannekuchen.tas8999.util.SpamProtection;
-import de.pfannekuchen.tas8999.util.Util;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;

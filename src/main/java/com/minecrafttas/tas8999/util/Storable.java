@@ -1,4 +1,4 @@
-package de.pfannekuchen.tas8999.util;
+package com.minecrafttas.tas8999.util;
 
 import java.io.File;
 import java.io.FileInputStream;
