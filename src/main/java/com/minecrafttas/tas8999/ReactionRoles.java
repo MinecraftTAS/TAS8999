@@ -39,6 +39,7 @@ public class ReactionRoles extends Storable {
 	}
 
 	public void createNewMessage(SlashCommandInteractionEvent event) {
+		LOGGER.info("{{}} Created reactionrole message", event.getGuild().getName());
 		event.deferReply().queue(defermsg -> {
 			MessageChannel channel = event.getChannel();
 			EmbedBuilder builder = createEmbed(null);
@@ -53,6 +54,7 @@ public class ReactionRoles extends Storable {
 	}
 
 	public void upsertOption(SlashCommandInteractionEvent event, String messageID, EmojiUnion emoji, Role role, String description) {
+		LOGGER.info("{{}} Added reactionrole {}", event.getGuild().getName(), emoji.getFormatted());
 		MessageChannel channel = event.getMessageChannel();
 		Guild guild = event.getGuild();
 		channel.retrieveMessageById(messageID).queue(msg -> {
@@ -82,6 +84,7 @@ public class ReactionRoles extends Storable {
 	}
 
 	public void removeOption(SlashCommandInteractionEvent event, String messageID, Emoji emoji) {
+		LOGGER.info("{{}} Removed reactionrole {}", event.getGuild().getName(), emoji.getFormatted());
 		MessageChannel channel = event.getMessageChannel();
 		Guild guild = event.getGuild();
 		channel.retrieveMessageById(messageID).queue(msg -> {
@@ -143,7 +146,10 @@ public class ReactionRoles extends Storable {
 	}
 
 	public void onDelete(Guild guild, String msgId) {
-		remove(guild, msgId);
+		if(containsKey(guild, msgId)) {
+			LOGGER.info("{{}} Removed rr message {}", guild.getName(), msgId);
+			remove(guild, msgId);
+		}
 	}
 
 	private LinkedHashMap<EmojiUnion, Pair<Role, String>> deserializeReactionRoles(Guild guild, String value) {
