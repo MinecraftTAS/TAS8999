@@ -5,18 +5,13 @@ import javax.security.auth.login.LoginException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.minecrafttas.tas8999.reactionroles.ReactionRoles;
 import com.minecrafttas.tas8999.util.SpamProtection;
 import com.minecrafttas.tas8999.util.Util;
-import com.vdurmont.emoji.EmojiManager;
 
-import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.MessageReaction;
-import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.events.guild.GuildJoinEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.message.MessageDeleteEvent;
@@ -31,8 +26,6 @@ import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.requests.restaction.CommandListUpdateAction;
 import net.dv8tion.jda.api.utils.MemberCachePolicy;
-import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
-import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 import net.dv8tion.jda.internal.interactions.CommandDataImpl;
 
 public class TAS8999 extends ListenerAdapter implements Runnable {
@@ -55,7 +48,7 @@ public class TAS8999 extends ListenerAdapter implements Runnable {
 		this.jda.awaitReady();
 		instance=this;
 		commandHandler = new CommandHandler(LOGGER);
-		this.reactionroles=new ReactionRoles(jda.getGuilds(), color);
+		this.reactionroles=new ReactionRoles(LOGGER);
 	}
 	
 	public static TAS8999 getBot() {
@@ -243,53 +236,23 @@ public class TAS8999 extends ListenerAdapter implements Runnable {
 	@Override
 	public void onMessageDelete(MessageDeleteEvent event) {
 		if(event.isFromGuild()) {
-			reactionroles.removeMessage(event.getGuild(), event.getMessageIdLong());
+			reactionroles.onDelete(event.getGuild(), event.getMessageIdLong());
 		}
 	}
 	
 	@Override
 	public void onMessageReactionAdd(MessageReactionAddEvent event) {
 		if (!Util.isThisUserThisBot(event.getUser())) {
-
-			MessageReaction reactionEmote = event.getReaction();
-
-			String roleId = reactionroles.getRole(event.getGuild(), event.getMessageIdLong(), reactionEmote.getEmoji().getFormatted());
-			
-			if(!roleId.isEmpty()) {
-				Guild guild=event.getGuild();
-				Role role=guild.getRoleById(roleId);
-				guild.addRoleToMember(event.getUser(), role).queue();
-					
-			}
-			else if (reactionEmote.getEmoji().asUnicode().equals(EmojiManager.getForAlias(":x:").getUnicode())) {
-
-				event.retrieveMessage().queue(msg -> {
-					if (Util.isThisUserThisBot(msg.getAuthor())) {
-
-						if (Util.hasBotReactedWith(msg, EmojiManager.getForAlias(":x:").getUnicode())) {
-							Util.deleteMessage(msg);
-						}
-					}
-				});
+			if(reactionroles.onReactionAdd(event)) {
+				return;
+			} else {
+				Util.deleteMessageOnReaction(event);
 			}
 		}
 	}
 	
 	@Override
 	public void onMessageReactionRemove(MessageReactionRemoveEvent event) {
-		event.retrieveUser().queue(user ->{
-			if (!Util.isThisUserThisBot(user)) {
-				MessageReaction reactionEmote = event.getReaction();
-		
-				String roleId = reactionroles.getRole(event.getGuild(), event.getMessageIdLong(),
-						reactionEmote.getMessageId());
-		
-				if (!roleId.isEmpty()) {
-					Guild guild = event.getGuild();
-					Role role = guild.getRoleById(roleId);
-					guild.removeRoleFromMember(user, role).queue();
-				}
-			}
-		});
+		reactionroles.onReactionRemove(event);
 	}
 }

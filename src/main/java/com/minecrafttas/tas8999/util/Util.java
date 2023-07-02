@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import com.minecrafttas.tas8999.TAS8999;
-import com.vdurmont.emoji.EmojiManager;
 
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
@@ -16,17 +15,20 @@ import net.dv8tion.jda.api.entities.MessageReaction;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
-import net.dv8tion.jda.api.entities.emoji.Emoji;
+import net.dv8tion.jda.api.entities.emoji.EmojiUnion;
+import net.dv8tion.jda.api.entities.emoji.UnicodeEmoji;
 import net.dv8tion.jda.api.entities.sticker.StickerItem;
 import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.GenericCommandInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.EntitySelectInteractionEvent;
+import net.dv8tion.jda.api.events.message.react.MessageReactionAddEvent;
 import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import net.dv8tion.jda.api.utils.messages.MessageCreateData;
+import net.dv8tion.jda.internal.entities.emoji.UnicodeEmojiImpl;
 
 public class Util {
 
-	public final static String deletableEmoji = EmojiManager.getForAlias(":x:").getUnicode();
+	public final static EmojiUnion deletableEmoji = new UnicodeEmojiImpl("\u274C");
 
 	/**
 	 * Sends a message to the channel
@@ -56,7 +58,7 @@ public class Util {
 	 * @param message
 	 */
 	public static void sendDeletableMessage(MessageChannel channel, String message) {
-		channel.sendMessage(message).queue(msg -> msg.addReaction(Emoji.fromUnicode(deletableEmoji)).queue());
+		channel.sendMessage(message).queue(msg -> msg.addReaction(deletableEmoji).queue());
 	}
 
 	/**
@@ -67,18 +69,18 @@ public class Util {
 	 * @param message
 	 */
 	public static void sendDeletableMessage(MessageChannel channel, MessageCreateData message) {
-		channel.sendMessage(message).queue(msg -> msg.addReaction(Emoji.fromUnicode(deletableEmoji)).queue());
+		channel.sendMessage(message).queue(msg -> msg.addReaction(deletableEmoji).queue());
 	}
 	
 	public static void sendDeletableReply(GenericCommandInteractionEvent channel, String newmsg) {
 		channel.reply(newmsg).queue(hook -> {
-			hook.retrieveOriginal().queue(msg -> msg.addReaction(Emoji.fromUnicode(deletableEmoji)).queue());
+			hook.retrieveOriginal().queue(msg -> msg.addReaction(deletableEmoji).queue());
 		});
 	}
 	
 	public static void sendDeletableReply(GenericCommandInteractionEvent channel, MessageCreateData newmsg) {
 		channel.reply(newmsg).queue(hook -> {
-			hook.retrieveOriginal().queue(msg -> msg.addReaction(Emoji.fromUnicode(deletableEmoji)).queue());
+			hook.retrieveOriginal().queue(msg -> msg.addReaction(deletableEmoji).queue());
 		});
 	}
 	
@@ -185,13 +187,13 @@ public class Util {
 	 * @param emote The emote to check
 	 * @return If the bot has reacted with an emote
 	 */
-	public static boolean hasBotReactedWith(Message msg, String emote) {
+	public static boolean hasBotReactedWith(Message msg, EmojiUnion emote) {
 		// Iterate through all reactions
 		for (MessageReaction reaction : msg.getReactions()) {
 			
-			Emoji rEmote = reaction.getEmoji();
+			EmojiUnion rEmote = reaction.getEmoji();
 			
-			if (rEmote.getFormatted().equals(emote)) {
+			if (rEmote.equals(emote)) {
 				return reaction.isSelf();
 			}
 		}
@@ -297,7 +299,7 @@ public class Util {
 	}
 
 	public static EmbedBuilder constructEmbedWithAuthor(Message msg, String title, String raw, int color, boolean image) {
-		EmbedBuilder builder = new EmbedBuilder().setAuthor(msg.getAuthor().getAsTag(), null, msg.getAuthor().getEffectiveAvatarUrl());
+		EmbedBuilder builder = new EmbedBuilder().setAuthor(msg.getAuthor().getEffectiveName(), null, msg.getAuthor().getEffectiveAvatarUrl());
 		builder.setDescription(raw);
 		
 		if(!title.isEmpty()) {
@@ -322,7 +324,7 @@ public class Util {
 	}
 	
 	public static EmbedBuilder constructEmbedWithAuthor(User author, String title, String raw, int color) {
-		EmbedBuilder builder = new EmbedBuilder().setAuthor(author.getAsTag(), null, author.getEffectiveAvatarUrl());
+		EmbedBuilder builder = new EmbedBuilder().setAuthor(author.getEffectiveName(), null, author.getEffectiveAvatarUrl());
 		if(!title.isEmpty()) {
 			builder.setTitle(title);
 		}
@@ -383,5 +385,16 @@ public class Util {
 			out += "\n"+sticker.getIconUrl();
 		}
 		return out;
+	}
+	
+	public static void deleteMessageOnReaction(MessageReactionAddEvent event) {
+		EmojiUnion emoji = event.getReaction().getEmoji();
+		if(emoji instanceof UnicodeEmoji) {
+			event.retrieveMessage().queue(msg ->{
+				if(!Util.isThisUserThisBot(msg.getAuthor()) && Util.hasBotReactedWith(msg, deletableEmoji)) {
+					Util.deleteMessage(msg);
+				}
+			});
+		}
 	}
 }
