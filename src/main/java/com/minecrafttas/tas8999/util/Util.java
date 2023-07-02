@@ -210,6 +210,28 @@ public class Util {
 		MessageCreateData msg = constructErrorMessage(e);
 		sendDeletableMessage(channel, msg);
 	}
+	
+	/**
+	 * Sends an error message from an exception
+	 * 
+	 * @param channel
+	 * @param e
+	 */
+	public static void sendErrorMessage(MessageChannel channel, Throwable e) {
+		MessageCreateData msg = constructErrorMessage(e);
+		sendDeletableMessage(channel, msg);
+	}
+
+	public static MessageCreateData constructErrorMessage(Throwable e) {
+		String message = "The error has no message .__.";
+		if (e.getMessage() != null) {
+			message = e.getMessage();
+		}
+		MessageCreateData msg = new MessageCreateBuilder().addEmbeds(
+				new EmbedBuilder().setTitle("Error ._.")
+				.addField(e.getClass().getSimpleName(), message, false).setColor(0xB90000).build()).build();
+		return msg;
+	}
 
 	public static MessageCreateData constructEmbedMessage(String title, String description, int color) {
 		return new MessageCreateBuilder().addEmbeds(new EmbedBuilder().setTitle(title).setDescription(description).setColor(color).build())
@@ -261,11 +283,15 @@ public class Util {
 		}
 	}
 	
+
+	public static void sendErrorMessage(MessageChannel messageChannel, String title, String description) {
+		sendDeletableMessage(messageChannel, Util.constructErrorMessage(title, description));
+	}
+	
 	public static void sendErrorReply(ModalInteractionEvent event, Exception e) {
 		sendReply(event, Util.constructErrorMessage(e), true);
 	}
 	
-
 	public static void sendDeletableReply(ModalInteractionEvent event, MessageCreateData constructErrorMessage) {
 		
 	}
@@ -391,10 +417,11 @@ public class Util {
 		EmojiUnion emoji = event.getReaction().getEmoji();
 		if(emoji instanceof UnicodeEmoji) {
 			event.retrieveMessage().queue(msg ->{
-				if(!Util.isThisUserThisBot(msg.getAuthor()) && Util.hasBotReactedWith(msg, deletableEmoji)) {
+				if(Util.isThisUserThisBot(msg.getAuthor()) && Util.hasBotReactedWith(msg, deletableEmoji)) {
 					Util.deleteMessage(msg);
 				}
 			});
 		}
 	}
+
 }

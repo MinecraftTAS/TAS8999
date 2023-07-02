@@ -1,7 +1,6 @@
 package com.minecrafttas.tas8999;
 
 import java.io.File;
-import java.util.HashMap;
 import java.util.Properties;
 
 import org.slf4j.Logger;
@@ -14,21 +13,16 @@ import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.interactions.commands.Command;
-import net.dv8tion.jda.api.interactions.commands.build.Commands;
-import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData;
 import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
-import net.dv8tion.jda.internal.interactions.CommandDataImpl;
-import net.dv8tion.jda.internal.interactions.command.CommandImpl;
-import net.dv8tion.jda.internal.utils.tuple.Pair;
 
-public class CommandHandler extends Storable {
+public class CustomCommands extends Storable {
 	
 	/**
 	 * Separator for the command description and the command body
 	 */
 	private String separator = ";:";
 	
-	public CommandHandler(Logger logger) {
+	public CustomCommands(Logger logger) {
 		super("Commands", new File("commands"), logger);
 	}
 	
