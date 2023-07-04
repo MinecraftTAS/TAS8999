@@ -154,11 +154,6 @@ public class TAS8999 extends ListenerAdapter implements Runnable {
 
 		String commandPath = event.getFullCommandName().replace(" ", "/");
 
-		if (!Util.hasAdminPerms(event.getMember())) {
-			Util.sendErrorReply(event, "Error", "Commands are currently disabled", true);
-			return;
-		}
-
 		try {
 			if (commandHandler.executeCommand(event, event.getName())) {
 				return;
