@@ -51,10 +51,12 @@ public class CustomCommands extends Storable {
 						Util.sendErrorReply(event, "Error","Command name is already in use", false);
 						return;
 					}
+					LOGGER.info("{{}} Creating new command {}", guild.getName(), name);
 					addCommand(event, name, description, markdown);
 				}
 			});
 		} else {
+			LOGGER.info("{{}} Updating command {}", guild.getName(), name);
 			addCommand(event, name, description, markdown);
 		}
 	}
@@ -67,15 +69,15 @@ public class CustomCommands extends Storable {
 						LOGGER.error("Command name is already in use");
 						return;
 					}
-					addCommand(guild, name, description, markdown);
+					addCommandSilent(guild, name, description, markdown);
 				}
 			});
 		} else {
-			addCommand(guild, name, description, markdown);
+			addCommandSilent(guild, name, description, markdown);
 		}
 	}
 	
-	private void addCommand(Guild guild, String name, String description, String markdown) {
+	private void addCommandSilent(Guild guild, String name, String description, String markdown) {
 		guild.upsertCommand(name, description).queue(command -> {
 			put(guild, name, command.getId()+separator+description+separator+markdown);
 		});
@@ -121,6 +123,8 @@ public class CustomCommands extends Storable {
 		MessageCreateBuilder builder = new MessageCreateBuilder();
 		EmbedBuilder embed = MD2Embed.parseEmbed(markdown, TAS8999.getBot().color);
 		builder.addEmbeds(embed.build());
+		
+		LOGGER.info("{{}} Executing command {}", guild.getName(), name);
 		
 		Util.sendReply(event, builder.build(), false);
 		
