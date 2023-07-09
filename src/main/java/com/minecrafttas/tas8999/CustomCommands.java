@@ -9,7 +9,6 @@ import com.minecrafttas.tas8999.util.MD2Embed;
 import com.minecrafttas.tas8999.util.Storable;
 import com.minecrafttas.tas8999.util.Util;
 
-import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.interactions.commands.Command;
@@ -90,20 +89,15 @@ public class CustomCommands extends Storable {
 		guild.upsertCommand(name, description).queue(command -> {
 			put(guild, name, command.getId()+separator+description+separator+markdown);
 			
-			MessageCreateBuilder message = new MessageCreateBuilder();
-			EmbedBuilder builder = null;
+			MessageCreateBuilder message = null;
 			try {
-				builder = MD2Embed.parseEmbed(markdown, TAS8999.getBot().color);
+				message = MD2Embed.parseMessage(markdown, TAS8999.getBot().color);
 			} catch (Exception e) {
 				Util.sendErrorReply(event, e, false);
 				return;
 			}
-			message.addEmbeds(builder.build());
-			message.setContent("Added new command: /"+name);
 			
 			Util.sendSelfDestructingReply(event, message.build(), 10);
-		}, fail->{
-			Util.sendErrorReply(event, "Error", fail.getMessage(), true);
 		});
 	}
 	
@@ -120,9 +114,7 @@ public class CustomCommands extends Storable {
 			return true;
 		}
 		
-		MessageCreateBuilder builder = new MessageCreateBuilder();
-		EmbedBuilder embed = MD2Embed.parseEmbed(markdown, TAS8999.getBot().color);
-		builder.addEmbeds(embed.build());
+		MessageCreateBuilder builder = MD2Embed.parseMessage(markdown, TAS8999.getBot().color);
 		
 		LOGGER.info("{{}} Executing command {}", guild.getName(), name);
 		
