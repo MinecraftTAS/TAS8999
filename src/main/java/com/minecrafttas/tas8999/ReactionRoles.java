@@ -35,7 +35,7 @@ public class ReactionRoles extends Storable {
 	private String separator = ";:";
 
 	public ReactionRoles(Logger logger) {
-		super("Reaction Roles", new File("reactionsroles"), logger);
+		super("Reaction Roles", new File("reactionsrole"), logger);
 	}
 
 	public void createNewMessage(SlashCommandInteractionEvent event) {
@@ -63,8 +63,12 @@ public class ReactionRoles extends Storable {
 			reactions.put(emoji, Pair.of(role, description));
 			setReactionsForMessage(guild, messageID, reactions);
 
-			EmbedBuilder embed = createEmbed(reactions);
-			channel.editMessageEmbedsById(messageID, embed.build()).queue();
+			if(!Util.isThisUserThisBot(msg.getAuthor())) {
+				LOGGER.info("{{}} Added reaction role to a message not from the bot", guild.getName());
+			} else {
+				EmbedBuilder embed = createEmbed(reactions);
+				channel.editMessageEmbedsById(messageID, embed.build()).queue();
+			}
 
 			boolean hasReacted = false;
 			for (MessageReaction react : msg.getReactions()) {
@@ -77,9 +81,6 @@ public class ReactionRoles extends Storable {
 
 			Util.sendReply(event, "Added/updated reactionrole", true);
 
-		}, failure -> {
-			Util.sendErrorMessage(channel, failure);
-			failure.printStackTrace();
 		});
 	}
 
@@ -93,8 +94,12 @@ public class ReactionRoles extends Storable {
 			reactions.remove(emoji);
 			setReactionsForMessage(guild, messageID, reactions);
 
-			EmbedBuilder embed = createEmbed(reactions);
-			channel.editMessageEmbedsById(messageID, embed.build()).queue();
+			if(!Util.isThisUserThisBot(msg.getAuthor())) {
+				LOGGER.info("{{}} Removed reaction role from a message not from the bot", guild.getName());
+			} else {
+				EmbedBuilder embed = createEmbed(reactions);
+				channel.editMessageEmbedsById(messageID, embed.build()).queue();
+			}
 
 			boolean hasReacted = false;
 			for (MessageReaction react : msg.getReactions()) {
@@ -129,7 +134,10 @@ public class ReactionRoles extends Storable {
 		return true;
 	}
 
-	public boolean onReactionRemove(MessageReactionRemoveEvent event) {
+	public boolean onReactionRemove(MessageReactionRemoveEvent event) {	
+		if(event.getUser()==null) {
+			return false;
+		}
 		LinkedHashMap<EmojiUnion, Pair<Role, String>> reactions = getReactionsForMessage(event.getGuild(), event.getMessageId());
 		if (reactions == null || Util.isThisUserThisBot(event.getUser()) || !reactions.containsKey(event.getEmoji())) {
 			return false;
