@@ -61,7 +61,7 @@ public class GuildStorage {
 	 * @param guild Guild
 	 */
 	@SneakyThrows
-	private void saveGuild(Guild guild) {
+	public void saveGuild(Guild guild) {
 		LOGGER.info("{{}} Saving {}", guild.getName(), name);
 
 		// check properties
@@ -115,7 +115,6 @@ public class GuildStorage {
 	 */
 	public void set(Guild guild, String key, String value) {
 		this.getGuildProperties(guild).put(key, value);
-		this.saveGuild(guild);
 	}
 
 	/**
@@ -124,9 +123,7 @@ public class GuildStorage {
 	 * @param key key
 	 */
 	public String remove(Guild guild, String key) {
-		String previous = (String) this.getGuildProperties(guild).remove(key);
-		this.saveGuild(guild);
-		return previous;
+		return (String) this.getGuildProperties(guild).remove(key);
 	}
 
 }

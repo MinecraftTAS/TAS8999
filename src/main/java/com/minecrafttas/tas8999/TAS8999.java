@@ -84,7 +84,7 @@ public class TAS8999 extends ListenerAdapter {
             switch (commandPath) {
                 case "customcommand/upsert" ->
                         event.getChannel().retrieveMessageById(event.getOption("messageid").getAsString()).queue(message ->
-                            commandHandler.addCommand(event, event.getGuild(), name, event.getOption("description").getAsString(), message.getContentRaw()));
+                            commandHandler.addCommand(event, event.getGuild(), true, name, event.getOption("description").getAsString(), message.getContentRaw()));
                 case "customcommand/rename" ->
 						commandHandler.renameCommand(event, name, event.getOption("newname").getAsString());
                 case "customcommand/remove" ->

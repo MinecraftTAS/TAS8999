@@ -38,10 +38,10 @@ public class CustomCommands {
 			var prop = this.storage.getGuildProperties(guild);
 			prop.forEach((key, value) -> {
 				var cmd = (String) key;
-				LOGGER.info("{{}} Loading custom command: {}", guild.getName(), cmd);
+				LOGGER.info("{{}} Adding command: {}", guild.getName(), cmd);
 
 				var data = ((String) value).split(SEPARATOR, 3);
-				this.addCommand(null, guild, cmd, data[1], data[2]);
+				this.addCommand(null, guild, false, cmd, data[1], data[2]);
 			});
 
 			// load main commands
@@ -93,16 +93,21 @@ public class CustomCommands {
 	 * Add custom command to guild
 	 * @param event Event to respond to (or null)
 	 * @param guild Guild to add command in
+	 * @param shouldSave Should save properties
 	 * @param name Command name
 	 * @param description Command description
 	 * @param markdown Command markdown
 	 */
-	public void addCommand(SlashCommandInteractionEvent event, Guild guild, String name, String description, String markdown) {
+	public void addCommand(SlashCommandInteractionEvent event, Guild guild, boolean shouldSave, String name, String description, String markdown) {
 		guild.upsertCommand(name, description).queue(command -> {
 			try {
 				var message = MarkdownParser.parseMessage(markdown, COLOR);
 
 				this.storage.set(guild, name, command.getId() + SEPARATOR + description + SEPARATOR + markdown);
+
+				if (shouldSave)
+					this.storage.saveGuild(guild);
+
 				if (event != null)
 					event.reply(message.build()).setEphemeral(true).queue();
 			} catch (Exception e) {
@@ -129,6 +134,7 @@ public class CustomCommands {
 			return;
 
 		this.storage.remove(guild, name);
+		this.storage.saveGuild(guild);
 		guild.deleteCommandById(commandId).queue();
 		event.reply("Removed custom command `" + name + "`").setEphemeral(true).queue();
 	}
@@ -149,6 +155,7 @@ public class CustomCommands {
 			return;
 
 		this.storage.set(guild, newName, this.storage.remove(guild, name));
+		this.storage.saveGuild(guild);
 		guild.editCommandById(commandId).setName(newName).queue();
 		event.reply("Renamed custom command `" + name + "` to `" + newName + "`").setEphemeral(true).queue();
 	}
