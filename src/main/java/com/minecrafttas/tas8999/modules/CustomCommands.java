@@ -1,162 +1,155 @@
 package com.minecrafttas.tas8999.modules;
 
-import java.io.File;
-import java.util.Properties;
-
-import com.minecrafttas.tas8999.TAS8999;
-import org.slf4j.Logger;
-
+import com.minecrafttas.tas8999.util.GuildStorage;
 import com.minecrafttas.tas8999.util.MD2Embed;
-import com.minecrafttas.tas8999.util.Storable;
 import com.minecrafttas.tas8999.util.Util;
-
+import lombok.SneakyThrows;
+import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
-import net.dv8tion.jda.api.interactions.commands.Command;
-import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 
-public class CustomCommands extends Storable {
-	
-	// separator for the command description and the command body
-	private String separator = ";:";
-	
-	public CustomCommands(Logger logger) {
-		super("Commands", new File("commands"), logger);
-	}
-	
-	@Override
-	public void loadForGuild(Guild guild) {
-		super.loadForGuild(guild);
-		Properties prop = getGuildProperty(guild);
-		prop.forEach((key, value) -> {
-			String strKey = (String) key;
-			LOGGER.info("{{}} Loading custom command: {}", guild.getName(), strKey);
-			String strValue = (String) value;
-			String[] split = strValue.split(separator, 3);
-			upsertCommand(guild, strKey, split[1], split[2]);
-		});
-	}
+import static com.minecrafttas.tas8999.TAS8999.COLOR;
+import static com.minecrafttas.tas8999.TAS8999.LOGGER;
 
-	public void upsertCommand(SlashCommandInteractionEvent event, String name, String description, String markdown) {
-		
-		Guild guild = event.getGuild();
-		
-		if(!containsKey(guild, name)) {
-			guild.retrieveCommands().queue(commands -> {
-				for(Command command : commands) {
-					LOGGER.info("Checking {}", command.getName());
-					if(command.getName().equals(name)) {
-						Util.sendErrorReply(event, "Error","Command name is already in use", false);
-						return;
-					}
-					LOGGER.info("{{}} Creating new command {}", guild.getName(), name);
-					addCommand(event, name, description, markdown);
-				}
+/**
+ * Custom commands upsertable using slash commands
+ * @author Scribble
+ */
+public class CustomCommands {
+	public static final String SEPARATOR = ";:"; // separator for the command description and the command body
+
+	private final GuildStorage storage;
+
+	/**
+	 * Initialize custom commands
+	 * @param bot JDA instance
+	 */
+	public CustomCommands(JDA bot) {
+
+		// load custom commands
+		this.storage = new GuildStorage("custom_commands");
+		for (var guild : bot.getGuilds()) {
+			var prop = this.storage.getGuildProperties(guild);
+			prop.forEach((key, value) -> {
+				var cmd = (String) key;
+				LOGGER.info("{{}} Loading custom command: {}", guild.getName(), cmd);
+
+				var data = ((String) value).split(SEPARATOR, 3);
+				this.addCommand(null, guild, cmd, data[1], data[2]);
 			});
-		} else {
-			LOGGER.info("{{}} Updating command {}", guild.getName(), name);
-			addCommand(event, name, description, markdown);
 		}
 	}
-	
-	public void upsertCommand(Guild guild, String name, String description, String markdown) {
-		if(!containsKey(guild, name)) {
-			guild.retrieveCommands().queue(commands -> {
-				for(Command command : commands) {
-					if(command.getName() == name) {
-						LOGGER.error("Command name is already in use");
-						return;
-					}
-					addCommandSilent(guild, name, description, markdown);
-				}
-			});
-		} else {
-			addCommandSilent(guild, name, description, markdown);
-		}
-	}
-	
-	private void addCommandSilent(Guild guild, String name, String description, String markdown) {
-		guild.upsertCommand(name, description).queue(command -> {
-			put(guild, name, command.getId()+separator+description+separator+markdown);
-		});
-	}
-	
-	private void addCommand(SlashCommandInteractionEvent event, String name, String description, String markdown) {
-		
-		Guild guild = event.getGuild();
-		
-		guild.upsertCommand(name, description).queue(command -> {
-			put(guild, name, command.getId()+separator+description+separator+markdown);
-			
-			MessageCreateBuilder message = null;
-			try {
-				message = MD2Embed.parseMessage(markdown, TAS8999.getBot().color);
-			} catch (Exception e) {
-				Util.sendErrorReply(event, e, false);
-				return;
-			}
-			
-			Util.sendSelfDestructingReply(event, message.build(), 10);
-		});
-	}
-	
-	public boolean executeCommand(SlashCommandInteractionEvent event, String name) throws Exception {
-		Guild guild = event.getGuild();
-		if(!containsKey(guild, name)) {
+
+	/**
+	 * Execute custom command if found
+	 * @param event Event
+	 * @param name Command name
+	 * @return Was sucessful
+	 */
+	@SneakyThrows
+	public boolean executeCommand(SlashCommandInteractionEvent event, String name) {
+		var guild = event.getGuild();
+		if (guild == null)
 			return false;
-		}
-		
-		String markdown = getMarkdownByName(guild, name);
-		
-		if(markdown.isEmpty()) {
-			Util.sendErrorReply(event, "Error", "The command body is empty", false);
-			return true;
-		}
-		
-		MessageCreateBuilder builder = MD2Embed.parseMessage(markdown, TAS8999.getBot().color);
-		
-		LOGGER.info("{{}} Executing command {}", guild.getName(), name);
-		
-		Util.sendReply(event, builder.build(), false);
-		
+
+		if (!this.storage.contains(guild, name))
+			return false;
+
+		// build and reply
+		event.reply(MD2Embed.parseMessage(this.getMarkdownByName(guild, name), COLOR).build()).setEphemeral(false).queue();
 		return true;
 	}
-	
-	public void removeCommand(SlashCommandInteractionEvent event, String name) {
-		Guild guild = event.getGuild();
-		String commandID = getIdByName(guild, name);
-		guild.deleteCommandById(commandID).queue(command -> {
-			remove(guild, name);
-			Util.sendReply(event, "Deleted custom command `"+name+"`", false);
+
+	/**
+	 * Add custom command to guild
+	 * @param event Event to respond to (or null)
+	 * @param guild Guild to add command in
+	 * @param name Command name
+	 * @param description Command description
+	 * @param markdown Command markdown
+	 */
+	public void addCommand(SlashCommandInteractionEvent event, Guild guild, String name, String description, String markdown) {
+		guild.upsertCommand(name, description).queue(command -> {
+			try {
+				var message = MD2Embed.parseMessage(markdown, COLOR);
+
+				this.storage.set(guild, name, command.getId() + SEPARATOR + description + SEPARATOR + markdown);
+				if (event != null)
+					event.reply(message.build()).setEphemeral(true).queue();
+			} catch (Exception e) {
+				if (event != null)
+					event.reply(Util.constructErrorMessage(e)).setEphemeral(true).queue();
+				else
+					LOGGER.error("{{}} Error loading custom command", guild.getName(), e);
+			}
 		});
 	}
 	
-	public String getIdByName(Guild guild, String name) {
-		String value = get(guild, name);
-		String[] split = value.split(separator, 3);
-		return split[0];
-	}
-	
-	public String getDescriptionByName(Guild guild, String name) {
-		String value = get(guild, name);
-		String[] split = value.split(separator, 3);
-		return split[1];
-	}
-	
-	public String getMarkdownByName(Guild guild, String name) {
-		String value = get(guild, name);
-		String[] split = value.split(separator, 3);
-		return split[2];
+	/**
+	 * Remove custom command from guild
+	 * @param event Event
+	 * @param name Command parameter
+	 */
+	public void removeCommand(SlashCommandInteractionEvent event, String name) {
+		var guild = event.getGuild();
+		if (guild == null)
+			return;
+
+		var commandId = this.getIdByName(guild, name);
+		if (commandId == null)
+			return;
+
+		this.storage.remove(guild, name);
+		guild.deleteCommandById(commandId).queue();
+		event.reply("Removed custom command `" + name + "`").setEphemeral(true).queue();
 	}
 
+	/**
+	 * Rename custom command
+	 * @param event Event
+	 * @param name Old name
+	 * @param newName New name
+	 */
 	public void renameCommand(SlashCommandInteractionEvent event, String name, String newName) {
-		Guild guild = event.getGuild();
-		guild.editCommandById(getIdByName(guild, name)).setName(newName).queue();
-		Properties prop = getGuildProperty(guild);
-		String value = prop.getProperty(name);
-		prop.remove(name);
-		prop.put(newName, value);
-		putGuildProperty(guild, prop);
-		Util.sendReply(event, "Renamed command `" + name + "` to `"+newName+"`", false);
+		var guild = event.getGuild();
+		if (guild == null)
+			return;
+
+		var commandId = this.getIdByName(guild, name);
+		if (commandId == null)
+			return;
+
+		this.storage.set(guild, newName, this.storage.remove(guild, name));
+		guild.editCommandById(commandId).setName(newName).queue();
+		event.reply("Renamed custom command `" + name + "` to `" + newName + "`").setEphemeral(true).queue();
 	}
+
+	/**
+	 * Get command by name
+	 * @param guild Guild
+	 * @param name Command name
+	 * @return Command id or null
+	 */
+	public String getIdByName(Guild guild, String name) {
+		var value = this.storage.get(guild, name);
+		if (value == null)
+			return null;
+
+		return value.split(SEPARATOR, 3)[0];
+	}
+
+	/**
+	 * Get command markdown by name
+	 * @param guild Guild
+	 * @param name Command name
+	 * @return Command markdown or null
+	 */
+	public String getMarkdownByName(Guild guild, String name) {
+		var value = this.storage.get(guild, name);
+		if (value == null)
+			return null;
+
+		return value.split(SEPARATOR, 3)[2];
+	}
+
 }
