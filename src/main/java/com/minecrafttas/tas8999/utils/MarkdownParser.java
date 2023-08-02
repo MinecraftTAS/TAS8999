@@ -1,4 +1,4 @@
-package com.minecrafttas.tas8999.util;
+package com.minecrafttas.tas8999.utils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -11,22 +11,35 @@ import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.Message.Attachment;
 import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 
-public class MD2Embed {
-	
-	public static EmbedBuilder parseEmbed(String embedString, int color) throws Exception{
+/**
+ * Markdown parser
+ * @author Scribble
+ */
+public class MarkdownParser {
+
+	// TODO: get scribble to document this (so that I can then rewrite it more efficiently i mean what)
+
+	/**
+	 * Parse markdown string into embed
+	 * @param text Raw markdown
+	 * @param color Embed color
+	 * @return Embed
+	 * @throws Exception Parsing exception
+	 */
+	public static EmbedBuilder parseEmbed(String text, int color) throws Exception {
 		EmbedBuilder builder = new EmbedBuilder();
 		builder.setColor(color);
 		
-		boolean insideBlock=false;
+		boolean insideBlock = false;
 		
-		String[] lines = embedString.split("\n");
+		String[] lines = text.split("\n");
 		
-		String description=null;
+		String description = null;
 		
-		String fieldTitle=null;
-		String fieldDescription="";
+		String fieldTitle = null;
+		String fieldDescription = "";
 		for (int i = 0; i < lines.length; i++) {
-			String line = lines[i];
+			var line = lines[i];
 			int linenumber = i+1;
 			
 			if (line.matches("^```(.+)?")) {
@@ -128,7 +141,7 @@ public class MD2Embed {
 					embedString = new ArrayList<>();
 				} else {
 					embedString.add(line);
-					embeds.add(MD2Embed.parseEmbed(embedString, color));
+					embeds.add(MarkdownParser.parseEmbed(embedString, color));
 					continue;
 				}
 			}
@@ -154,7 +167,7 @@ public class MD2Embed {
 	}
 	
 	public static EmbedBuilder parseEmbed(List<String> lines, int color) throws Exception {
-		return MD2Embed.parseEmbed(String.join("\n", lines), color);
+		return MarkdownParser.parseEmbed(String.join("\n", lines), color);
 	}
 
 

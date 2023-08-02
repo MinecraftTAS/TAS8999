@@ -32,7 +32,7 @@ base {
 
 // set application main class
 application {
-	mainClassName = 'com.minecrafttas.tas8999.TAS8999'
+	mainClass = 'com.minecrafttas.tas8999.TAS8999'
 }
 
 // compile for java 20

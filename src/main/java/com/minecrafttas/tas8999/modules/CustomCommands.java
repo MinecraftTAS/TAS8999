@@ -1,14 +1,18 @@
 package com.minecrafttas.tas8999.modules;
 
-import com.minecrafttas.tas8999.util.GuildStorage;
-import com.minecrafttas.tas8999.util.MD2Embed;
-import com.minecrafttas.tas8999.util.Util;
+import com.minecrafttas.tas8999.utils.GuildStorage;
+import com.minecrafttas.tas8999.utils.MarkdownParser;
 import lombok.SneakyThrows;
 import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
+import net.dv8tion.jda.api.interactions.commands.DefaultMemberPermissions;
+import net.dv8tion.jda.api.interactions.commands.OptionType;
+import net.dv8tion.jda.api.interactions.commands.build.OptionData;
+import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
+import net.dv8tion.jda.internal.interactions.CommandDataImpl;
 
-import static com.minecrafttas.tas8999.TAS8999.COLOR;
 import static com.minecrafttas.tas8999.TAS8999.LOGGER;
 
 /**
@@ -17,6 +21,7 @@ import static com.minecrafttas.tas8999.TAS8999.LOGGER;
  */
 public class CustomCommands {
 	public static final String SEPARATOR = ";:"; // separator for the command description and the command body
+	public static final int COLOR = 0x05808e;
 
 	private final GuildStorage storage;
 
@@ -26,9 +31,10 @@ public class CustomCommands {
 	 */
 	public CustomCommands(JDA bot) {
 
-		// load custom commands
+		// load guilds
 		this.storage = new GuildStorage("custom_commands");
 		for (var guild : bot.getGuilds()) {
+			// load custom commands
 			var prop = this.storage.getGuildProperties(guild);
 			prop.forEach((key, value) -> {
 				var cmd = (String) key;
@@ -37,6 +43,29 @@ public class CustomCommands {
 				var data = ((String) value).split(SEPARATOR, 3);
 				this.addCommand(null, guild, cmd, data[1], data[2]);
 			});
+
+			// load main commands
+			var updater = guild.updateCommands();
+
+			var customCommand = new CommandDataImpl("customcommand", "Command for adding and upating customcommands");
+			var upsertSubCommand = new SubcommandData("upsert", "Adds or updates a new custom command");
+			var renameSubCommand = new SubcommandData("rename", "Renames a custom command");
+			var removeSubCommand = new SubcommandData("remove", "Removes a custom command");
+
+			var commandNameOption = new OptionData(OptionType.STRING, "name", "The custom command name", true);
+			var commandNewNameOption = new OptionData(OptionType.STRING, "newname", "The new custom command name", true);
+			var commandDescriptionOption = new OptionData(OptionType.STRING, "description", "The custom command description", true);
+			var commandBodyOption = new OptionData(OptionType.STRING, "messageid", "The messageid of the commandtext", true);
+
+			upsertSubCommand.addOptions(commandNameOption, commandDescriptionOption, commandBodyOption);
+			renameSubCommand.addOptions(commandNameOption, commandNewNameOption);
+			removeSubCommand.addOptions(commandNameOption);
+
+			customCommand.setDefaultPermissions(DefaultMemberPermissions.enabledFor(Permission.MODERATE_MEMBERS));
+			customCommand.addSubcommands(upsertSubCommand, renameSubCommand, removeSubCommand);
+
+			updater.addCommands(customCommand);
+			updater.queue();
 		}
 	}
 
@@ -56,7 +85,7 @@ public class CustomCommands {
 			return false;
 
 		// build and reply
-		event.reply(MD2Embed.parseMessage(this.getMarkdownByName(guild, name), COLOR).build()).setEphemeral(false).queue();
+		event.reply(MarkdownParser.parseMessage(this.getMarkdownByName(guild, name), COLOR).build()).setEphemeral(false).queue();
 		return true;
 	}
 
@@ -71,16 +100,16 @@ public class CustomCommands {
 	public void addCommand(SlashCommandInteractionEvent event, Guild guild, String name, String description, String markdown) {
 		guild.upsertCommand(name, description).queue(command -> {
 			try {
-				var message = MD2Embed.parseMessage(markdown, COLOR);
+				var message = MarkdownParser.parseMessage(markdown, COLOR);
 
 				this.storage.set(guild, name, command.getId() + SEPARATOR + description + SEPARATOR + markdown);
 				if (event != null)
 					event.reply(message.build()).setEphemeral(true).queue();
 			} catch (Exception e) {
 				if (event != null)
-					event.reply(Util.constructErrorMessage(e)).setEphemeral(true).queue();
-				else
-					LOGGER.error("{{}} Error loading custom command", guild.getName(), e);
+					event.reply("Something went wrong while trying to create this command, please check the console.").setEphemeral(true).queue();
+
+				LOGGER.error("{{}} Error adding custom command", guild.getName(), e);
 			}
 		});
 	}

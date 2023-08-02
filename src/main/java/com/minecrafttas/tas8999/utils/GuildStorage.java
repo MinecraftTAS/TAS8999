@@ -1,4 +1,4 @@
-package com.minecrafttas.tas8999.util;
+package com.minecrafttas.tas8999.utils;
 
 import lombok.SneakyThrows;
 import net.dv8tion.jda.api.entities.Guild;
@@ -17,6 +17,7 @@ import static com.minecrafttas.tas8999.TAS8999.LOGGER;
  * @author Scribble
  */
 public class GuildStorage {
+
 	private final String name;
 	private final Map<Long, Properties> properties;
 	private final File storageDir;
@@ -28,7 +29,7 @@ public class GuildStorage {
 	public GuildStorage(String name) {
 		this.name = name;
 		this.properties = new HashMap<>();
-		this.storageDir = new File("storage_" + name);
+		this.storageDir = new File(name);
 		this.storageDir.mkdirs();
 	}
 
