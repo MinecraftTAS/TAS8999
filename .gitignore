@@ -1,26 +1,18 @@
-.gradle
+# Eclipse files
 .settings
 .classpath
 .project
-build
+.metadata
+.factorypath
 bin
-*.launch
-run
-Private.java
 
+# Gradle files
+.gradle
+build
+
+# IntelliJ files
 .idea/
-Fabric-1.14.4/.gradle/
-Fabric-1.14.4/build/
-Fabric-1.14.4/run/
 out/
 
-.properties
-*.properties
-
-reactionroles/
-
-# JDA stuff
-dv8tion/
-iwebpp/
-submissions/
+# TAS8999 files
 custom_commands/
