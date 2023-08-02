@@ -15,7 +15,6 @@ import net.dv8tion.jda.api.entities.Guild;
 
 public class Storable {
 	private String name;
-	
 	private final HashMap<Long, Properties> guildProperties = new HashMap<>();
 	protected final File storageDir;
 	protected final Logger LOGGER;

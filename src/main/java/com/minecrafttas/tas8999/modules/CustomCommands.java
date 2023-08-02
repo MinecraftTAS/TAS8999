@@ -1,8 +1,9 @@
-package com.minecrafttas.tas8999;
+package com.minecrafttas.tas8999.modules;
 
 import java.io.File;
 import java.util.Properties;
 
+import com.minecrafttas.tas8999.TAS8999;
 import org.slf4j.Logger;
 
 import com.minecrafttas.tas8999.util.MD2Embed;
