@@ -2,10 +2,12 @@ package com.minecrafttas.tas8999;
 
 import com.minecrafttas.tas8999.modules.CustomCommands;
 import com.minecrafttas.tas8999.modules.SpamProtection;
+import com.minecrafttas.tas8999.modules.SubmissionManagement;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
+import net.dv8tion.jda.api.events.message.react.MessageReactionAddEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.utils.MemberCachePolicy;
@@ -21,9 +23,13 @@ public class TAS8999 extends ListenerAdapter {
 
 	public static final Logger LOGGER = LoggerFactory.getLogger("TAS8999");
 
+	public static final long NEW_TAS_THINGS = 399223722491510794L;
+	public static final long NEW_MISC_THINGS = 555113094570049577L;
+	public static final long TB_VIDEOS = 803651015383187456L;
+
 	private final SpamProtection spamProtection;
 	private final CustomCommands commandHandler;
-
+	private final SubmissionManagement submissionManagement;
 
 	/**
 	 * Initialize TAS8999
@@ -40,9 +46,20 @@ public class TAS8999 extends ListenerAdapter {
 		// initialize modules
 		this.spamProtection = new SpamProtection();
 		this.commandHandler = new CustomCommands(jda);
+		this.submissionManagement = new SubmissionManagement(jda);
 
 		LOGGER.info("TAS8999 fully loaded");
 	}
+
+	/**
+	 * Handle reactions on submissions
+	 * @param event Reaction added event
+	 */
+	@Override
+	public void onMessageReactionAdd(MessageReactionAddEvent event) {
+		event.getChannel().retrieveMessageById(event.getMessageIdLong()).queue(message -> this.submissionManagement.onReaction(event, message));
+	}
+
 
 	/**
 	 * Handle incoming messages
@@ -73,6 +90,15 @@ public class TAS8999 extends ListenerAdapter {
                 case "customcommand/remove" ->
 						commandHandler.removeCommand(event, name);
             }
+		} else if (commandPath.startsWith("submit/")) {
+			var url = event.getOption("url").getAsString();
+			var comment = event.getOption("comment", null, option -> option.getAsString());
+
+			switch (commandPath) {
+				case "submit/tas" -> this.submissionManagement.onMiscSubmission(event, 399223722491510794L, url, comment, true);
+				case "submit/misc" -> this.submissionManagement.onMiscSubmission(event, 555113094570049577L, url, comment, false);
+				case "submit/tasbattle" -> this.submissionManagement.onMiscSubmission(event, 803651015383187456L, url, comment, true);
+			}
 		}
 	}
 
