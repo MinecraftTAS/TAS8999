@@ -1,31 +1,40 @@
-// USE GRADLE 7
-
+// configure plugins
 plugins {
-    id 'java-library'
-    id("com.github.johnrengelman.shadow") version "5.1.0"
+	// java application plugin
     id 'application'
+	// shadow plugin
+	id 'com.github.johnrengelman.shadow' version '8.1.1'
 }
 
-sourceCompatibility = "1.8";
-targetCompatibility = "1.8";
-
+// configure repositories
 repositories {
+	// add maven central
 	mavenCentral()
-    maven { url 'https://m2.dv8tion.net/releases' }
 }
 
-mainClassName = 'com.minecrafttas.tas8999.main.Main'
-
-
+// configure dependencies
 dependencies {
+	// jda discord api
 	implementation group: 'net.dv8tion', name: 'JDA', version: '5.0.0-beta.12'
+	// logger
 	implementation group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.3'
-	implementation group: 'commons-io', name: 'commons-io', version: '2.11.0'
-	implementation group: 'org.json', name: 'json', version: '20170516'
 }
 
-shadowJar{
-	archiveFileName = "TAS8999-Discord-Bot.jar"
+// configure jar
+base {
+	// change compiled filename
+	archivesName = "TAS8999-v2.0.0-SNAPSHOT"
 }
 
+// set application main class
+application {
+	mainClassName = 'com.minecrafttas.tas8999.TAS8999'
+}
+
+// compile for java 8
+java {
+	sourceCompatibility = targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+// always generate shadow jar
 build.dependsOn(shadowJar)
