@@ -17,9 +17,7 @@ import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 
 public class CustomCommands extends Storable {
 	
-	/**
-	 * Separator for the command description and the command body
-	 */
+	// separator for the command description and the command body
 	private String separator = ";:";
 	
 	public CustomCommands(Logger logger) {
