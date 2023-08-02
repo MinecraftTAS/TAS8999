@@ -29,7 +29,9 @@ import net.dv8tion.jda.api.requests.restaction.CommandListUpdateAction;
 import net.dv8tion.jda.api.utils.MemberCachePolicy;
 import net.dv8tion.jda.internal.interactions.CommandDataImpl;
 
-public class TAS8999 extends ListenerAdapter implements Runnable {
+public class TAS8999 extends ListenerAdapter {
+
+	public static void main(String[] args) throws Exception { new TAS8999(); }
 
 	private final JDA jda;
 	private static TAS8999 instance;
@@ -40,27 +42,24 @@ public class TAS8999 extends ListenerAdapter implements Runnable {
 	public final int color = 0x05808e;
 	private final ReactionRoles reactionroles;
 
-	public TAS8999(String token) throws InterruptedException, LoginException {
-		final JDABuilder builder = JDABuilder.createDefault(token).setMemberCachePolicy(MemberCachePolicy.ALL).enableIntents(GatewayIntent.GUILD_MEMBERS, GatewayIntent.MESSAGE_CONTENT).addEventListeners(this);
+	public TAS8999() throws Exception {
+		final JDABuilder builder = JDABuilder.createDefault(System.getenv("TAS8999_TOKEN")).setMemberCachePolicy(MemberCachePolicy.ALL).enableIntents(GatewayIntent.GUILD_MEMBERS, GatewayIntent.MESSAGE_CONTENT).addEventListeners(this);
 		this.jda = builder.build();
 		this.jda.awaitReady();
 		instance = this;
 		commandHandler = new CustomCommands(LOGGER);
 		this.reactionroles = new ReactionRoles(LOGGER);
+
+		// register the commands
+		LOGGER.info("Preparing bot...");
+		for (Guild guild : jda.getGuilds())
+			prepareGuild(guild);
+
+		LOGGER.info("Done preparing bot!");
 	}
 
 	public static TAS8999 getBot() {
 		return instance;
-	}
-
-	@Override
-	public void run() {
-		/* Register the Commands */
-		LOGGER.info("Preparing bot...");
-		for (Guild guild : jda.getGuilds()) {
-			prepareGuild(guild);
-		}
-		LOGGER.info("Done preparing bot!");
 	}
 
 	private void prepareGuild(Guild guild) {
