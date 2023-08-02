@@ -1,24 +1,15 @@
 package com.minecrafttas.tas8999;
 
 import com.minecrafttas.tas8999.modules.CustomCommands;
-import com.minecrafttas.tas8999.modules.ReactionRoles;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.minecrafttas.tas8999.util.SpamProtection;
+import com.minecrafttas.tas8999.modules.SpamProtection;
 import com.minecrafttas.tas8999.util.Util;
-
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.events.guild.GuildJoinEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
-import net.dv8tion.jda.api.events.message.MessageDeleteEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
-import net.dv8tion.jda.api.events.message.react.MessageReactionAddEvent;
-import net.dv8tion.jda.api.events.message.react.MessageReactionRemoveEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.commands.DefaultMemberPermissions;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
@@ -28,18 +19,19 @@ import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.requests.restaction.CommandListUpdateAction;
 import net.dv8tion.jda.api.utils.MemberCachePolicy;
 import net.dv8tion.jda.internal.interactions.CommandDataImpl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class TAS8999 extends ListenerAdapter {
 	public static void main(String[] args) throws Exception { new TAS8999(); }
 
+	public static final Logger LOGGER = LoggerFactory.getLogger("TAS8999");
+
 	private final JDA jda;
-	private static TAS8999 instance;
-	private final SpamProtection protecc = new SpamProtection();
-	private static final Logger LOGGER = LoggerFactory.getLogger("TAS8999");
+	private final SpamProtection spamProtection;
 	private final CustomCommands commandHandler;
 
 	public final int color = 0x05808e;
-	private final ReactionRoles reactionroles;
 
 	public TAS8999() throws Exception {
 		var token = System.getenv("TAS8999_TOKEN");
@@ -49,10 +41,8 @@ public class TAS8999 extends ListenerAdapter {
 				.addEventListeners(this)
 				.build().awaitReady();
 
-		instance = this;
-
+		this.spamProtection = new SpamProtection();
 		this.commandHandler = new CustomCommands(LOGGER);
-		this.reactionroles = new ReactionRoles(LOGGER);
 
 		// register the commands
 		LOGGER.info("Preparing bot...");
@@ -62,14 +52,9 @@ public class TAS8999 extends ListenerAdapter {
 		LOGGER.info("Done preparing bot!");
 	}
 
-	public static TAS8999 getBot() {
-		return instance;
-	}
-
 	private void prepareGuild(Guild guild) {
 		createCommands(guild);
 		commandHandler.loadForGuild(guild);
-		reactionroles.loadForGuild(guild);
 	}
 
 	private void createCommands(Guild guild) {
@@ -119,10 +104,6 @@ public class TAS8999 extends ListenerAdapter {
 		updater.queue();
 	}
 
-	public JDA getJDA() {
-		return jda;
-	}
-
 	@Override
 	public void onGuildJoin(GuildJoinEvent event) {
 		LOGGER.info("Joining new guild {}", event.getGuild().getName());
@@ -133,7 +114,7 @@ public class TAS8999 extends ListenerAdapter {
 	public void onMessageReceived(MessageReceivedEvent event) {
 		try {
 			event.getChannel().retrieveMessageById(event.getMessageId()).submit().whenComplete((msg, stage) -> {
-				protecc.checkMessage(msg);
+				this.spamProtection.checkMessage(msg);
 			});
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -154,7 +135,6 @@ public class TAS8999 extends ListenerAdapter {
 
 	@Override
 	public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
-
 		String commandPath = event.getFullCommandName().replace(" ", "/");
 
 		try {
@@ -171,14 +151,6 @@ public class TAS8999 extends ListenerAdapter {
 					String name = event.getOption("name").getAsString();
 					commandHandler.removeCommand(event, name);
 				}
-			} else if (commandPath.startsWith("reactionrole/")) {
-				if (commandPath.equals("reactionrole/create")) {
-					reactionroles.createNewMessage(event);
-				} else if (commandPath.equals("reactionrole/upsert")) {
-					reactionroles.upsertOption(event, event.getOption("messageid").getAsString(), Emoji.fromFormatted(event.getOption("emote").getAsString()), event.getOption("role").getAsRole(), event.getOption("description").getAsString());
-				} else if(commandPath.equals("reactionrole/remove")) {
-					reactionroles.removeOption(event, event.getOption("messageid").getAsString(), Emoji.fromFormatted(event.getOption("emote").getAsString()));
-				}
 			}
 		} catch (Exception e) {
 			Util.sendErrorReply(event, e, false);
@@ -186,26 +158,4 @@ public class TAS8999 extends ListenerAdapter {
 		}
 	}
 
-	@Override
-	public void onMessageDelete(MessageDeleteEvent event) {
-		if (event.isFromGuild()) {
-			reactionroles.onDelete(event.getGuild(), event.getMessageId());
-		}
-	}
-
-	@Override
-	public void onMessageReactionAdd(MessageReactionAddEvent event) {
-		if (!Util.isThisUserThisBot(event.getUser())) {
-			if (reactionroles.onReactionAdd(event)) {
-				return;
-			} else {
-				Util.deleteMessageOnReaction(event);
-			}
-		}
-	}
-
-	@Override
-	public void onMessageReactionRemove(MessageReactionRemoveEvent event) {
-		reactionroles.onReactionRemove(event);
-	}
 }
