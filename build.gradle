@@ -40,5 +40,25 @@ java {
 	sourceCompatibility = targetCompatibility = JavaVersion.VERSION_20
 }
 
-// always generate shadow jar
-build.dependsOn(shadowJar)
+// upload tas8999 task [login via key]
+tasks.register('upload', Exec) {
+	workingDir "${buildDir}/libs"
+	commandLine "cmd.exe /k echo put ${base.archivesName.get()}-all.jar | sftp -oPort=13524 pancake@mgnet.work".split(" ")
+}
+
+// copy tas8999 task
+tasks.register('copyTAS8999', Exec) {
+	workingDir "${buildDir}/libs"
+	commandLine "ssh -p 13524 pancake@mgnet.work echo ${pancake_password} | sudo -S -u root cp /home/pancake/${base.archivesName.get()}-all.jar /home/tas/tas8999/tas8999.jar".split(" ")
+}
+
+// restart tas8999 task
+tasks.register('restartTAS8999', Exec) {
+	workingDir "${buildDir}/libs"
+	commandLine "ssh -p 13524 pancake@mgnet.work echo ${pancake_password} | sudo -S -u root systemctl -M tas@ --user restart tas8999".split(" ")
+}
+
+upload.dependsOn = ['shadowJar']
+upload.finalizedBy(copyTAS8999)
+copyTAS8999.finalizedBy(restartTAS8999)
+upload.group = 'tas8999'
