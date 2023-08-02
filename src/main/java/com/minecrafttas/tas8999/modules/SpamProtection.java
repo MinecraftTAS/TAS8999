@@ -58,7 +58,6 @@ public class SpamProtection extends TimerTask {
 
 		// kick user on third post in separate channels
 		var count = userData.messages().stream().map(Message::getChannel).distinct().count();
-		LOGGER.info(count + "c");
 		if (count == 3) {
 			LOGGER.info("Trying to kick {}", author.getName());
 

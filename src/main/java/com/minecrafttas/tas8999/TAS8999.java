@@ -26,23 +26,22 @@ public class TAS8999 extends ListenerAdapter {
 	public static void main(String[] args) throws Exception { new TAS8999(); }
 
 	public static final Logger LOGGER = LoggerFactory.getLogger("TAS8999");
+	public static final int COLOR = 0x05808e;
 
-	private final JDA jda;
 	private final SpamProtection spamProtection;
 	private final CustomCommands commandHandler;
 
-	public final int color = 0x05808e;
 
 	public TAS8999() throws Exception {
 		var token = System.getenv("TAS8999_TOKEN");
-		this.jda = JDABuilder.createDefault(token)
+		JDA jda = JDABuilder.createDefault(token)
 				.setMemberCachePolicy(MemberCachePolicy.ALL)
 				.enableIntents(GatewayIntent.GUILD_MEMBERS, GatewayIntent.MESSAGE_CONTENT)
 				.addEventListeners(this)
 				.build().awaitReady();
 
 		this.spamProtection = new SpamProtection();
-		this.commandHandler = new CustomCommands(LOGGER);
+		this.commandHandler = new CustomCommands(jda);
 
 		// register the commands
 		LOGGER.info("Preparing bot...");
@@ -54,7 +53,6 @@ public class TAS8999 extends ListenerAdapter {
 
 	private void prepareGuild(Guild guild) {
 		createCommands(guild);
-		commandHandler.loadForGuild(guild);
 	}
 
 	private void createCommands(Guild guild) {
@@ -121,7 +119,7 @@ public class TAS8999 extends ListenerAdapter {
 		}
 
 		event.getChannel().retrieveMessageById(event.getMessageId()).submit().whenComplete((msg, stage) -> {
-			if (Util.hasAdminPerms(msg.getMember())) {
+			if (msg.getMember().hasPermission(Permission.ADMINISTRATOR)) {
 
 				String raw = msg.getContentRaw();
 
@@ -135,26 +133,20 @@ public class TAS8999 extends ListenerAdapter {
 
 	@Override
 	public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
-		String commandPath = event.getFullCommandName().replace(" ", "/");
+		String commandPath = event.getFullCommandName().replace(' ', '/');
 
-		try {
-			if (commandHandler.executeCommand(event, event.getName())) {
-				return;
-			} else if (commandPath.startsWith("customcommand/")) {
-				if (commandPath.equals("customcommand/upsert")) {
-					event.getChannel().retrieveMessageById(event.getOption("messageid").getAsString()).queue(message -> {
-						commandHandler.upsertCommand(event, event.getOption("name").getAsString(), event.getOption("description").getAsString(), message.getContentRaw());
-					});
-				} else if (commandPath.equals("customcommand/rename")) {
-					commandHandler.renameCommand(event, event.getOption("name").getAsString(), event.getOption("newname").getAsString());
-				} else if (commandPath.equals("customcommand/remove")) {
-					String name = event.getOption("name").getAsString();
-					commandHandler.removeCommand(event, name);
-				}
-			}
-		} catch (Exception e) {
-			Util.sendErrorReply(event, e, false);
-			e.printStackTrace();
+		if (!commandHandler.executeCommand(event, event.getName()) && commandPath.startsWith("customcommand/")) {
+			var name = event.getOption("name").getAsString();
+
+            switch (commandPath) {
+                case "customcommand/upsert" ->
+                        event.getChannel().retrieveMessageById(event.getOption("messageid").getAsString()).queue(message ->
+                            commandHandler.addCommand(event, event.getGuild(), name, event.getOption("description").getAsString(), message.getContentRaw()));
+                case "customcommand/rename" ->
+						commandHandler.renameCommand(event, name, event.getOption("newname").getAsString());
+                case "customcommand/remove" ->
+						commandHandler.removeCommand(event, name);
+            }
 		}
 	}
 
