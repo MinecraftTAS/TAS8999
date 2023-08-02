@@ -1,10 +1,11 @@
-package com.minecrafttas.tas8999;
+package com.minecrafttas.tas8999.modules;
 
 import java.io.File;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Set;
 
+import com.minecrafttas.tas8999.TAS8999;
 import org.slf4j.Logger;
 
 import com.minecrafttas.tas8999.util.Storable;
@@ -28,8 +29,9 @@ import net.dv8tion.jda.internal.utils.tuple.Pair;
  * Messages with reactions that give the user the roles when reacting
  * 
  * @author Scribble
- *
+ * @deprecated Onboarding will replace reaction roles
  */
+@Deprecated
 public class ReactionRoles extends Storable {
 
 	private String separator = ";:";

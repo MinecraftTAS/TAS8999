@@ -1,7 +1,7 @@
 package com.minecrafttas.tas8999;
 
-import javax.security.auth.login.LoginException;
-
+import com.minecrafttas.tas8999.modules.CustomCommands;
+import com.minecrafttas.tas8999.modules.ReactionRoles;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,7 +30,6 @@ import net.dv8tion.jda.api.utils.MemberCachePolicy;
 import net.dv8tion.jda.internal.interactions.CommandDataImpl;
 
 public class TAS8999 extends ListenerAdapter {
-
 	public static void main(String[] args) throws Exception { new TAS8999(); }
 
 	private final JDA jda;
@@ -43,11 +42,16 @@ public class TAS8999 extends ListenerAdapter {
 	private final ReactionRoles reactionroles;
 
 	public TAS8999() throws Exception {
-		final JDABuilder builder = JDABuilder.createDefault(System.getenv("TAS8999_TOKEN")).setMemberCachePolicy(MemberCachePolicy.ALL).enableIntents(GatewayIntent.GUILD_MEMBERS, GatewayIntent.MESSAGE_CONTENT).addEventListeners(this);
-		this.jda = builder.build();
-		this.jda.awaitReady();
+		var token = System.getenv("TAS8999_TOKEN");
+		this.jda = JDABuilder.createDefault(token)
+				.setMemberCachePolicy(MemberCachePolicy.ALL)
+				.enableIntents(GatewayIntent.GUILD_MEMBERS, GatewayIntent.MESSAGE_CONTENT)
+				.addEventListeners(this)
+				.build().awaitReady();
+
 		instance = this;
-		commandHandler = new CustomCommands(LOGGER);
+
+		this.commandHandler = new CustomCommands(LOGGER);
 		this.reactionroles = new ReactionRoles(LOGGER);
 
 		// register the commands

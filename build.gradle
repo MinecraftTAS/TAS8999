@@ -31,9 +31,9 @@ application {
 	mainClassName = 'com.minecrafttas.tas8999.TAS8999'
 }
 
-// compile for java 8
+// compile for java 20
 java {
-	sourceCompatibility = targetCompatibility = JavaVersion.VERSION_1_8
+	sourceCompatibility = targetCompatibility = JavaVersion.VERSION_20
 }
 
 // always generate shadow jar
