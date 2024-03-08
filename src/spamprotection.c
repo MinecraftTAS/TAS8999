@@ -1,0 +1,71 @@
+#include "spamprotection.h"
+
+#include <concord/log.h>
+#include <string.h>
+
+u64snowflake monitored_user = 0; //!< User to monitor
+u64snowflake last_channel_id = 0; //!< Last channel the user sent a message in
+uint64_t last_url_time = 0; //!< Last time a URL was sent by the user
+uint64_t amount_of_urls = 0; //!< Amount of URLs sent by the user
+
+void spamprotection_on_message(struct discord *client, const struct discord_message *event) {
+    // check if message contains url
+    if (!strstr(event->content, "http://") && !strstr(event->content, "https://")) {
+        if (event->author->id == monitored_user) {
+            monitored_user = 0;
+            last_channel_id = 0;
+            last_url_time = 0;
+            amount_of_urls = 0;
+            log_info("Cleared monitored user due to sending non-URL message");
+        }
+
+        return;
+    }
+
+    // clear monitored user if 10s passed
+    if ((event->timestamp - last_url_time) > 10000) {
+        monitored_user = 0;
+        last_channel_id = 0;
+        last_url_time = 0;
+        amount_of_urls = 0;
+        log_info("Cleared monitored user due to inactivity");
+    }
+
+    // check if message is in the same channel
+    if (event->channel_id == last_channel_id) {
+        monitored_user = 0;
+        last_channel_id = 0;
+        last_url_time = 0;
+        amount_of_urls = 0;
+        log_info("Cleared monitored user due to sending URL in the same channel");
+    }
+
+    // update monitored user
+    u64snowflake user = event->author->id;
+    if (user != monitored_user) {
+        monitored_user = user;
+        last_channel_id = event->channel_id;
+        last_url_time = event->timestamp;
+        amount_of_urls = 1;
+        log_info("Updated monitored user to %lu", monitored_user);
+        return;
+    }
+
+    // check if user sent 5 or more urls in 10s
+    if (++amount_of_urls >= 5) {
+        discord_remove_guild_member(client, event->guild_id, monitored_user, &(struct discord_remove_guild_member) {
+            .reason = "Spam Protection flagged user for sending too many URLs"
+        }, NULL);
+        log_info("Kicked user %lu for sending too many URLs", monitored_user);
+
+        monitored_user = 0;
+        last_channel_id = 0;
+        last_url_time = 0;
+        amount_of_urls = 0;
+    }
+
+    // update last url time
+    last_channel_id = event->channel_id;
+    last_url_time = event->timestamp;
+    log_info("User %lu sent %lu URLs within 10s", monitored_user, amount_of_urls);
+}
