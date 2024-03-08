@@ -5,6 +5,8 @@
 
 u64snowflake monitored_user = 0; //!< User to monitor
 u64snowflake last_channel_id = 0; //!< Last channel the user sent a message in
+u64snowflake message_channelids[5]; //!< Last 5 channels the user sent a message in
+u64snowflake message_ids[5]; //!< Last 5 messages the user sent
 uint64_t last_url_time = 0; //!< Last time a URL was sent by the user
 uint64_t amount_of_urls = 0; //!< Amount of URLs sent by the user
 
@@ -52,10 +54,19 @@ void spamprotection_on_message(struct discord *client, const struct discord_mess
     }
 
     // check if user sent 5 or more urls in 10s
+    message_ids[amount_of_urls] = event->id;
+    message_channelids[amount_of_urls] = event->channel_id;
     if (++amount_of_urls >= 5) {
         discord_remove_guild_member(client, event->guild_id, monitored_user, &(struct discord_remove_guild_member) {
             .reason = "Spam Protection flagged user for sending too many URLs"
         }, NULL);
+
+        for (int i = 0; i < 5; i++) {
+            discord_delete_message(client, message_channelids[i], message_ids[i], &(struct discord_delete_message) {
+                .reason = "Spam Protection flagged user for sending too many URLs"
+            }, NULL);
+        }
+
         log_info("Kicked user %lu for sending too many URLs", monitored_user);
 
         monitored_user = 0;
