@@ -23,6 +23,7 @@
 #include <concord/log.h>
 
 #include "customcommands.h"
+#include "submissions.h"
 
 /// Config file for the bot
 #define CONFIG_FILE "config.json"
@@ -76,6 +77,7 @@ static int initialize_discord() {
  */
 static void on_slash_command(struct discord *client, const struct discord_interaction *event) {
     customcommands_on_slash_command(client, event);
+    submissions_on_slash_command(client, event);
 }
 
 /**
@@ -108,6 +110,10 @@ static void bot_main(struct discord *client, const struct discord_ready *event) 
 
     // cleanup
     free(commands);
+
+    // add slash command from submissions module
+    log_info("[TAS8999] Initializing submissions slash command...");
+    submissions_initialize(client, event->application->id);
 }
 
 /**
@@ -127,12 +133,15 @@ int main() {
     // run discord bot
     log_info("[TAS8999] Launching tas8999 discord bot...");
     signal(SIGINT, handle_sigint);
+    discord_set_on_message_reaction_add(discord_client, submissions_on_reaction_add);
+    discord_add_intents(discord_client, DISCORD_GATEWAY_MESSAGE_CONTENT);
     discord_set_on_ready(discord_client, bot_main);
     CCORDcode code = discord_run(discord_client);
 
     // cleanup discord bot
     log_info("[TAS8999] Discord bot exited (%d), cleaning up...", code);
     customcommands_deinitialize();
+    submissions_deinitialize();
     discord_cleanup(discord_client);
     ccord_global_cleanup();
     return EXIT_SUCCESS;
