@@ -24,6 +24,7 @@
 
 #include "customcommands.h"
 #include "submissions.h"
+#include "spamprotection.h"
 
 /// Config file for the bot
 #define CONFIG_FILE "config.json"
@@ -136,6 +137,7 @@ int main() {
     discord_set_on_message_reaction_add(discord_client, submissions_on_reaction_add);
     discord_add_intents(discord_client, DISCORD_GATEWAY_MESSAGE_CONTENT);
     discord_set_on_ready(discord_client, bot_main);
+    discord_set_on_message_create(discord_client, spamprotection_on_message);
     CCORDcode code = discord_run(discord_client);
 
     // cleanup discord bot
