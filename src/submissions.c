@@ -14,10 +14,10 @@
 #define TAS_DESCRIPTION "Submit to #new-tas-things"
 #define TASBATTLE_DESCRIPTION "Submit to #tb-videos"
 
-#define MISC_CHANNEL 816982394912374805ULL
-#define TAS_CHANNEL 816274632025833475ULL
-#define TASBATTLE_CHANNEL 816982092747505676ULL
-#define CONFIRMATION_CHANNEL 888503048824037486ULL
+#define MISC_CHANNEL 555113094570049577ULL
+#define TAS_CHANNEL 399223722491510794ULL
+#define TASBATTLE_CHANNEL 803651015383187456ULL
+#define CONFIRMATION_CHANNEL 765575637447868417ULL
 
 void submissions_initialize(struct discord *client, u64snowflake application_id) {
     struct discord_application_command_options* options = &(struct discord_application_command_options) {
