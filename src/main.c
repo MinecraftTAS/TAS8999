@@ -22,6 +22,8 @@
 #include <concord/discord.h>
 #include <concord/log.h>
 
+#include "customcommands.h"
+
 /// Config file for the bot
 #define CONFIG_FILE "config.json"
 
@@ -73,7 +75,7 @@ static int initialize_discord() {
  * \param event Interaction event
  */
 static void on_slash_command(struct discord *client, const struct discord_interaction *event) {
-
+    customcommands_on_slash_command(client, event);
 }
 
 /**
@@ -82,10 +84,30 @@ static void on_slash_command(struct discord *client, const struct discord_intera
  * \param client Discord client
  * \param event Ready event
  */
-void bot_main(struct discord *client, const struct discord_ready *event) {
-    // initialize global slash commands
-    log_info("[TAS8999] Initializing global slash commands...");
+static void bot_main(struct discord *client, const struct discord_ready *event) {
+    // get slash commands from custom commands module
+    log_info("[TAS8999] Initializing custom slash commands...");
+    command_list* custom_commands = customcommands_initialize(event->application->id);
+    if (!custom_commands) {
+        log_fatal("[TAS8999] Failed to initialize custom slash commands");
+
+        discord_shutdown(client);
+        return;
+    }
+
+    // update slash commands
+    log_info("[TAS8999] Updating slash commands...");
+    struct discord_application_command* commands = calloc(custom_commands->count, sizeof(struct discord_application_command));
+    for (int i = 0; i < custom_commands->count; i++) commands[i] = *custom_commands->commands[i].command;
+
     discord_set_on_interaction_create(client, on_slash_command);
+    discord_bulk_overwrite_global_application_commands(client, event->application->id, &(struct discord_application_commands) {
+        .size = custom_commands->count,
+        .array = commands
+    }, NULL);
+
+    // cleanup
+    free(commands);
 }
 
 /**
@@ -110,6 +132,7 @@ int main() {
 
     // cleanup discord bot
     log_info("[TAS8999] Discord bot exited (%d), cleaning up...", code);
+    customcommands_deinitialize();
     discord_cleanup(discord_client);
     ccord_global_cleanup();
     return EXIT_SUCCESS;
