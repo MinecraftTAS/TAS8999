@@ -12,7 +12,7 @@ uint64_t amount_of_urls = 0; //!< Amount of URLs sent by the user
 
 void spamprotection_on_message(struct discord *client, const struct discord_message *event) {
     // check if message contains url
-    if (!strstr(event->content, "http://") && !strstr(event->content, "https://")) {
+    if (!strstr(event->content, "http://") && !strstr(event->content, "https://") && !strstr(event->content, "discord.gg")) {
         if (event->author->id == monitored_user) {
             monitored_user = 0;
             last_channel_id = 0;
