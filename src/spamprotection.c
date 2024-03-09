@@ -18,7 +18,7 @@ void spamprotection_on_message(struct discord *client, const struct discord_mess
             last_channel_id = 0;
             last_url_time = 0;
             amount_of_urls = 0;
-            log_info("Cleared monitored user due to sending non-URL message");
+            log_info("[SPAMPROTECTION] Cleared monitored user due to sending non-URL message");
         }
 
         return;
@@ -30,7 +30,7 @@ void spamprotection_on_message(struct discord *client, const struct discord_mess
         last_channel_id = 0;
         last_url_time = 0;
         amount_of_urls = 0;
-        log_info("Cleared monitored user due to inactivity");
+        log_info("[SPAMPROTECTION] Cleared monitored user due to inactivity");
     }
 
     // check if message is in the same channel
@@ -39,7 +39,7 @@ void spamprotection_on_message(struct discord *client, const struct discord_mess
         last_channel_id = 0;
         last_url_time = 0;
         amount_of_urls = 0;
-        log_info("Cleared monitored user due to sending URL in the same channel");
+        log_info("[SPAMPROTECTION] Cleared monitored user due to sending URL in the same channel");
     }
 
     // update monitored user
@@ -48,8 +48,10 @@ void spamprotection_on_message(struct discord *client, const struct discord_mess
         monitored_user = user;
         last_channel_id = event->channel_id;
         last_url_time = event->timestamp;
+        message_ids[0] = event->id;
+        message_channelids[0] = event->channel_id;
         amount_of_urls = 1;
-        log_info("Updated monitored user to %lu", monitored_user);
+        log_info("[SPAMPROTECTION] Updated monitored user to %lu", monitored_user);
         return;
     }
 
@@ -67,16 +69,17 @@ void spamprotection_on_message(struct discord *client, const struct discord_mess
             }, NULL);
         }
 
-        log_info("Kicked user %lu for sending too many URLs", monitored_user);
+        log_info("[SPAMPROTECTION] Kicked user %lu for sending too many URLs", monitored_user);
 
         monitored_user = 0;
         last_channel_id = 0;
         last_url_time = 0;
         amount_of_urls = 0;
+        return;
     }
 
     // update last url time
     last_channel_id = event->channel_id;
     last_url_time = event->timestamp;
-    log_info("User %lu sent %lu URLs within 10s", monitored_user, amount_of_urls);
+    log_info("[SPAMPROTECTION] User %lu sent %lu URLs within 10s", monitored_user, amount_of_urls);
 }
