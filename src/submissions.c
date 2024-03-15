@@ -103,15 +103,15 @@ static void add_thread(struct discord *client, struct discord_response *response
  * Approve a submission
  *
  * \param client The discord client
- * \param message The message to approve
+ * \param event The interaction event
  */
-static void approve_submission(struct discord *client, const struct discord_message *message) {
+static void approve_submission(struct discord *client, const struct discord_interaction *event) {
     // check if message is from a bot
-    if (!message->author->bot)
+    if (!event->message->author->bot)
         return;
 
     // parse message
-    char* content = message->content;
+    char* content = strdup(event->message->content);
     char* comment = strtok(content, "\n");
     char* url = strtok(NULL, "\n");
     char* user_text = strtok(NULL, "\n");
@@ -125,6 +125,17 @@ static void approve_submission(struct discord *client, const struct discord_mess
     char* channel = strtok(NULL, ">");
     if (!user || !channel)
         return;
+
+    // disable buttons
+    event->message->components->array[0].components->array[0].disabled = true;
+    event->message->components->array[0].components->array[1].disabled = true;
+    discord_create_interaction_response(client, event->id, event->token, &(struct discord_interaction_response) {
+        .type = DISCORD_INTERACTION_UPDATE_MESSAGE,
+        .data = &(struct discord_interaction_callback_data) {
+            .components = event->message->components,
+            .content = event->message->content
+        }
+    }, NULL);
 
     // send message in appropriate channel
     uint64_t user_id = atoll(channel);
@@ -135,27 +146,25 @@ static void approve_submission(struct discord *client, const struct discord_mess
         .content = new_message
     }, &ret);
 
-    // delete message
-    discord_delete_message(client, message->channel_id, message->id, &(struct discord_delete_message) {
-        .reason = "Approved submission"
-    }, NULL);
-
     log_info("[SUBMISSIONS] Approved submission (%s) from %s", url, user);
+
+    // cleanup
+    free(content);
 }
 
 /**
  * Reject a submission
  *
  * \param client The discord client
- * \param message The message to reject
+ * \param event The interaction event
  */
-static void reject_submission(struct discord *client, const struct discord_message *message) {
+static void reject_submission(struct discord *client, const struct discord_interaction *event) {
     // check if message is from a bot
-    if (!message->author->bot)
+    if (!event->message->author->bot)
         return;
 
     // parse message
-    char* content = message->content;
+    char* content = strdup(event->message->content);
     char* comment = strtok(content, "\n");
     char* url = strtok(NULL, "\n");
     char* user_text = strtok(NULL, "\n");
@@ -169,6 +178,17 @@ static void reject_submission(struct discord *client, const struct discord_messa
     char* channel = strtok(NULL, ">");
     if (!user || !channel)
         return;
+
+    // disable buttons
+    event->message->components->array[0].components->array[0].disabled = true;
+    event->message->components->array[0].components->array[1].disabled = true;
+    discord_create_interaction_response(client, event->id, event->token, &(struct discord_interaction_response) {
+        .type = DISCORD_INTERACTION_UPDATE_MESSAGE,
+        .data = &(struct discord_interaction_callback_data) {
+            .components = event->message->components,
+            .content = event->message->content
+        }
+    }, NULL);
 
     // send dm to user
     char* rejection_message = malloc(4001);
@@ -182,12 +202,10 @@ static void reject_submission(struct discord *client, const struct discord_messa
         .recipient_id = atoll(user)
     }, &ret);
 
-    // delete message
-    discord_delete_message(client, message->channel_id, message->id, &(struct discord_delete_message) {
-        .reason = "Rejected submission"
-    }, NULL);
-
     log_info("[SUBMISSIONS] Rejected submission (%s) from %s", url, user);
+
+    // cleanup
+    free(content);
 }
 
 void submissions_on_slash_command(struct discord *client, const struct discord_interaction *event) {
@@ -273,9 +291,9 @@ void submissions_on_interaction(struct discord *client, const struct discord_int
 
     // check if button is approved or rejected
     if (strcmp(event->data->custom_id, "approve") == 0) {
-        approve_submission(client, event->message);
+        approve_submission(client, event);
     } else {
-        reject_submission(client, event->message);
+        reject_submission(client, event);
     }
 }
 
