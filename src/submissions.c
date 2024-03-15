@@ -100,25 +100,12 @@ static void add_thread(struct discord *client, struct discord_response *response
 }
 
 /**
- * Add reactions to the message to allow the user to confirm or deny the submission
- *
- * \param client The discord client
- * \param response The response from the message creation
- * \param message The message that was created
- */
-static void add_reactions(struct discord *client, struct discord_response *response, const struct discord_message *message) {
-    discord_create_reaction(client, message->channel_id, message->id, 0, "\xE2\x9C\x85", NULL);
-    discord_create_reaction(client, message->channel_id, message->id, 0, "\xE2\x9D\x8C", NULL);
-}
-
-/**
  * Approve a submission
  *
  * \param client The discord client
- * \param response The response from the message creation
  * \param message The message to approve
  */
-static void approve_submission(struct discord *client, struct discord_response *response, const struct discord_message *message) {
+static void approve_submission(struct discord *client, const struct discord_message *message) {
     // check if message is from a bot
     if (!message->author->bot)
         return;
@@ -160,10 +147,9 @@ static void approve_submission(struct discord *client, struct discord_response *
  * Reject a submission
  *
  * \param client The discord client
- * \param response The response from the message creation
  * \param message The message to reject
  */
-static void reject_submission(struct discord *client, struct discord_response *response, const struct discord_message *message) {
+static void reject_submission(struct discord *client, const struct discord_message *message) {
     // check if message is from a bot
     if (!message->author->bot)
         return;
@@ -202,25 +188,6 @@ static void reject_submission(struct discord *client, struct discord_response *r
     }, NULL);
 
     log_info("[SUBMISSIONS] Rejected submission (%s) from %s", url, user);
-}
-
-void submissions_on_reaction_add(struct discord *client, const struct discord_message_reaction_add *event) {
-    // check if bot reacted
-    if (event->member->user->bot)
-        return;
-
-    // check if in submission channel
-    if (event->channel_id != CONFIRMATION_CHANNEL)
-        return;
-
-    // check if the reaction is an approval
-    if (strcmp(event->emoji->name, "\xE2\x9C\x85") == 0) {
-        struct discord_ret_message ret = { .done = approve_submission };
-        discord_get_channel_message(client, event->channel_id, event->message_id, &ret);
-    } else if (strcmp(event->emoji->name, "\xE2\x9D\x8C") == 0) {
-        struct discord_ret_message ret = { .done = reject_submission };
-        discord_get_channel_message(client, event->channel_id, event->message_id, &ret);
-    }
 }
 
 void submissions_on_slash_command(struct discord *client, const struct discord_interaction *event) {
@@ -267,12 +234,48 @@ void submissions_on_slash_command(struct discord *client, const struct discord_i
 
     // send confirmation message
     if (requires_confirmation) {
-        struct discord_ret_message ret = { .done = add_reactions };
         discord_create_message(client, CONFIRMATION_CHANNEL, &(struct discord_create_message) {
             .content = message,
-        }, &ret);
+            .components = &(struct discord_components) {
+                .size = 1,
+                .array = (struct discord_component[]) {
+                    {
+                        .type = DISCORD_COMPONENT_ACTION_ROW,
+                        .components = &(struct discord_components) {
+                            .size = 2,
+                            .array = (struct discord_component[]) {
+                                {
+                                    .type = DISCORD_COMPONENT_BUTTON,
+                                    .label = "Approve",
+                                    .style = DISCORD_BUTTON_SUCCESS,
+                                    .custom_id = "approve"
+                                }, {
+                                    .type = DISCORD_COMPONENT_BUTTON,
+                                    .label = "Reject",
+                                    .style = DISCORD_BUTTON_DANGER,
+                                    .custom_id = "reject"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }, NULL);
 
         log_info("[SUBMISSIONS] Submitted tas (%s) from %s to confirmation", url, event->member->user->username);
+    }
+}
+
+void submissions_on_interaction(struct discord *client, const struct discord_interaction *event) {
+    // check if in submission channel
+    if (event->channel_id != CONFIRMATION_CHANNEL)
+        return;
+
+    // check if button is approved or rejected
+    if (strcmp(event->data->custom_id, "approve") == 0) {
+        approve_submission(client, event->message);
+    } else {
+        reject_submission(client, event->message);
     }
 }
 
