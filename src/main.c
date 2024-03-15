@@ -71,14 +71,18 @@ static int initialize_discord() {
 }
 
 /**
- * Handle slash command interaction
+ * Handle bot interaction
  *
  * \param client Discord client
  * \param event Interaction event
  */
-static void on_slash_command(struct discord *client, const struct discord_interaction *event) {
-    customcommands_on_slash_command(client, event);
-    submissions_on_slash_command(client, event);
+static void on_interaction(struct discord *client, const struct discord_interaction *event) {
+    if (event->type == DISCORD_INTERACTION_APPLICATION_COMMAND) {
+        customcommands_on_slash_command(client, event);
+        submissions_on_slash_command(client, event);
+    } else if (event->type == DISCORD_INTERACTION_MESSAGE_COMPONENT) {
+        submissions_on_interaction(client, event);
+    }
 }
 
 /**
@@ -103,7 +107,7 @@ static void bot_main(struct discord *client, const struct discord_ready *event) 
     struct discord_application_command* commands = calloc(custom_commands->count, sizeof(struct discord_application_command));
     for (int i = 0; i < custom_commands->count; i++) commands[i] = *custom_commands->commands[i].command;
 
-    discord_set_on_interaction_create(client, on_slash_command);
+    discord_set_on_interaction_create(client, on_interaction);
     discord_bulk_overwrite_global_application_commands(client, event->application->id, &(struct discord_application_commands) {
         .size = custom_commands->count,
         .array = commands
@@ -134,7 +138,6 @@ int main() {
     // run discord bot
     log_info("[TAS8999] Launching tas8999 discord bot...");
     signal(SIGINT, handle_sigint);
-    discord_set_on_message_reaction_add(discord_client, submissions_on_reaction_add);
     discord_add_intents(discord_client, DISCORD_GATEWAY_MESSAGE_CONTENT);
     discord_set_on_ready(discord_client, bot_main);
     discord_set_on_message_create(discord_client, spamprotection_on_message);
