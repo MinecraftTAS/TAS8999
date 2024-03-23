@@ -42,31 +42,29 @@ static void handle_sigint(int signum) {
 /**
  * Initialize discord client
  *
- * \param client Discord client
- *
- * \return 0 on success, 1 on failure
+ * \return Discord client on success, NULL on failure
  */
-static int initialize_discord(struct discord **client) {
+static struct discord* initialize_discord() {
     // initialize concord
     CCORDcode code = ccord_global_init();
     if (code) {
         log_trace("[TAS8999] ccord_global_init() failed: %d", code);
 
-        return 1;
+        return NULL;
     }
     log_trace("[TAS8999] ccord_global_init() success");
 
     // create discord client
-    *client = discord_config_init(CONFIG_FILE);
-    if (!*client) {
+    struct discord* client = discord_config_init(CONFIG_FILE);
+    if (!client) {
         log_trace("[TAS8999] discord_create() failed");
 
         ccord_global_cleanup();
-        return 1;
+        return NULL;
     }
     log_trace("[TAS8999] discord_create() success");
 
-    return 0;
+    return client;
 }
 
 /**
@@ -128,8 +126,8 @@ static void bot_main(struct discord *client, const struct discord_ready *event) 
 int main() {
     // initialize discord bot
     log_info("[TAS8999] Initializing tas8999 discord bot...");
-    struct discord* client = NULL;
-    if (initialize_discord(&client)) {
+    struct discord* client = initialize_discord();
+    if (!client) {
         log_fatal("[TAS8999] Failed to initialize discord bot");
 
         return EXIT_FAILURE;
