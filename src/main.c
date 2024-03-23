@@ -29,9 +29,6 @@
 /// Config file for the bot
 #define CONFIG_FILE "config.json"
 
-/// Discord client instance
-static struct discord *discord_client = NULL;
-
 /**
  * Handle SIGINT signal and shut down the bot
  *
@@ -39,15 +36,17 @@ static struct discord *discord_client = NULL;
  */
 static void handle_sigint(int signum) {
     log_info("[TAS8999] Received SIGINT, shutting down bot...");
-    if (discord_client) discord_shutdown(discord_client);
+    ccord_shutdown_async();
 }
 
 /**
  * Initialize discord client
  *
+ * \param client Discord client
+ *
  * \return 0 on success, 1 on failure
  */
-static int initialize_discord() {
+static int initialize_discord(struct discord **client) {
     // initialize concord
     CCORDcode code = ccord_global_init();
     if (code) {
@@ -58,8 +57,8 @@ static int initialize_discord() {
     log_trace("[TAS8999] ccord_global_init() success");
 
     // create discord client
-    discord_client = discord_config_init(CONFIG_FILE);
-    if (!discord_client) {
+    *client = discord_config_init(CONFIG_FILE);
+    if (!*client) {
         log_trace("[TAS8999] discord_create() failed");
 
         ccord_global_cleanup();
@@ -129,7 +128,8 @@ static void bot_main(struct discord *client, const struct discord_ready *event) 
 int main() {
     // initialize discord bot
     log_info("[TAS8999] Initializing tas8999 discord bot...");
-    if (initialize_discord()) {
+    struct discord* client = NULL;
+    if (initialize_discord(&client)) {
         log_fatal("[TAS8999] Failed to initialize discord bot");
 
         return EXIT_FAILURE;
@@ -138,16 +138,16 @@ int main() {
     // run discord bot
     log_info("[TAS8999] Launching tas8999 discord bot...");
     signal(SIGINT, handle_sigint);
-    discord_add_intents(discord_client, DISCORD_GATEWAY_MESSAGE_CONTENT);
-    discord_set_on_ready(discord_client, bot_main);
-    discord_set_on_message_create(discord_client, spamprotection_on_message);
-    CCORDcode code = discord_run(discord_client);
+    discord_add_intents(client, DISCORD_GATEWAY_MESSAGE_CONTENT);
+    discord_set_on_ready(client, bot_main);
+    discord_set_on_message_create(client, spamprotection_on_message);
+    CCORDcode code = discord_run(client);
 
     // cleanup discord bot
     log_info("[TAS8999] Discord bot exited (%d), cleaning up...", code);
     customcommands_deinitialize();
     submissions_deinitialize();
-    discord_cleanup(discord_client);
+    discord_cleanup(client);
     ccord_global_cleanup();
     return EXIT_SUCCESS;
 }
