@@ -19,56 +19,88 @@
 #define TASBATTLE_CHANNEL 803651015383187456ULL
 #define CONFIRMATION_CHANNEL 765575637447868417ULL
 
-void submissions_initialize(struct discord *client, u64snowflake application_id) {
-    struct discord_application_command_options* options = &(struct discord_application_command_options) {
-        .size = 2,
-        .array = (struct discord_application_command_option[]) {
-            {
-                .type = DISCORD_APPLICATION_OPTION_STRING,
-                .name = "url",
-                .description = "Video URL",
-                .required = true
-            },
-            {
-                .type = DISCORD_APPLICATION_OPTION_STRING,
-                .name = "comment",
-                .description = "Optional comment",
-                .required = false
+/// Options for the slash command (wasteful, but at least no need to memory manage)
+struct discord_application_command_options _options = {
+    .size = 3,
+    .array = (struct discord_application_command_option[]) {
+        {
+            .type = DISCORD_APPLICATION_OPTION_SUB_COMMAND,
+            .name = "misc",
+            .description = MISC_DESCRIPTION,
+            .options = &(struct discord_application_command_options) {
+                .size = 2,
+                .array = (struct discord_application_command_option[]) {
+                    {
+                        .type = DISCORD_APPLICATION_OPTION_STRING,
+                        .name = "url",
+                        .description = "Video URL",
+                        .required = true
+                    },
+                    {
+                        .type = DISCORD_APPLICATION_OPTION_STRING,
+                        .name = "comment",
+                        .description = "Optional comment",
+                        .required = false
+                    }
+                }
+            }
+        },
+        {
+            .type = DISCORD_APPLICATION_OPTION_SUB_COMMAND,
+            .name = "tas",
+            .description = TAS_DESCRIPTION,
+            .options = &(struct discord_application_command_options) {
+                .size = 2,
+                .array = (struct discord_application_command_option[]) {
+                    {
+                        .type = DISCORD_APPLICATION_OPTION_STRING,
+                        .name = "url",
+                        .description = "Video URL",
+                        .required = true
+                    },
+                    {
+                        .type = DISCORD_APPLICATION_OPTION_STRING,
+                        .name = "comment",
+                        .description = "Optional comment",
+                        .required = false
+                    }
+                }
+            }
+        },
+        {
+            .type = DISCORD_APPLICATION_OPTION_SUB_COMMAND,
+            .name = "tasbattle",
+            .description = TASBATTLE_DESCRIPTION,
+            .options = &(struct discord_application_command_options) {
+                .size = 2,
+                .array = (struct discord_application_command_option[]) {
+                    {
+                        .type = DISCORD_APPLICATION_OPTION_STRING,
+                        .name = "url",
+                        .description = "Video URL",
+                        .required = true
+                    },
+                    {
+                        .type = DISCORD_APPLICATION_OPTION_STRING,
+                        .name = "comment",
+                        .description = "Optional comment",
+                        .required = false
+                    }
+                }
             }
         }
-    };
+    }
+};
 
-    struct discord_application_command_options* subcommands = &(struct discord_application_command_options) {
-        .size = 3,
-        .array = (struct discord_application_command_option[]) {
-            {
-                .type = DISCORD_APPLICATION_OPTION_SUB_COMMAND,
-                .name = "misc",
-                .description = MISC_DESCRIPTION,
-                .options = options
-            },
-            {
-                .type = DISCORD_APPLICATION_OPTION_SUB_COMMAND,
-                .name = "tas",
-                .description = TAS_DESCRIPTION,
-                .options = options
-            },
-            {
-                .type = DISCORD_APPLICATION_OPTION_SUB_COMMAND,
-                .name = "tasbattle",
-                .description = TASBATTLE_DESCRIPTION,
-                .options = options
-            }
-        }
-    };
+int submissions_initialize(struct discord_application_command* commands, struct discord *client, u64snowflake application_id) {
+    commands->type = DISCORD_APPLICATION_CHAT_INPUT;
+    commands->name = "submit";
+    commands->description = "Submit a TAS";
+    commands->default_permission = true;
+    commands->application_id = application_id;
+    commands->options = &_options;
 
-    discord_create_global_application_command(client, application_id, &(struct discord_create_global_application_command) {
-        .type = DISCORD_APPLICATION_CHAT_INPUT,
-        .name = "submit",
-        .description = "Submit a TAS",
-        .default_permission = true,
-        .options = subcommands
-    }, NULL);
+    return 1;
 }
 
 /**

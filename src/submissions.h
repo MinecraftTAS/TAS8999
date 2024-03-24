@@ -11,10 +11,13 @@
 /**
  * Initialize submissions
  *
+ * \param commands Commands array
  * \param client Discord client
  * \param application_id Application ID
+ *
+ * \return Amount of commands initialized, -1 on failure
  */
-void submissions_initialize(struct discord *client, u64snowflake application_id);
+int submissions_initialize(struct discord_application_command* commands, struct discord *client, u64snowflake application_id);
 
 /**
  * On slash command

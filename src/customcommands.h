@@ -13,7 +13,6 @@ typedef struct {
     char *name; //!< Command name
     char *description; //!< Command description
     struct discord_embed* embed; //!< Command embed
-    struct discord_application_command* command; //!< Discord command
 } custom_command;
 
 /// Command list
@@ -25,11 +24,12 @@ typedef struct {
 /**
  * Initialize custom commands
  *
+ * \param commands Commands array
  * \param application_id Application ID
  *
- * \return Command list
+ * \return Amount of commands initialized, -1 on failure
  */
-command_list* customcommands_initialize(u64snowflake application_id);
+int customcommands_initialize(struct discord_application_command* commands, u64snowflake application_id);
 
 /**
  * On slash command

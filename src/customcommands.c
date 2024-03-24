@@ -10,24 +10,25 @@
 
 #define CUSTOMCOMMANDS_DIR "customcommands"
 
-static command_list *commands = NULL;
+static command_list commands;
 
-command_list* customcommands_initialize(u64snowflake application_id) {
+int customcommands_initialize(struct discord_application_command* discord_commands, u64snowflake application_id) {
     // check if the custom commands directory exists
     DIR *dir = opendir(CUSTOMCOMMANDS_DIR);
     if (!dir) {
         log_trace("[CUSTOMCOMMANDS] opendir() failed: %s", strerror(errno));
-        return NULL;
+
+        return -1;
     }
     log_trace("[CUSTOMCOMMANDS] opendir() success");
 
     // allocate memory for the command list
-    commands = calloc(1, sizeof(command_list));
-    if (!commands) {
+    commands.commands = malloc(sizeof(custom_command));
+    if (!commands.commands) {
         log_trace("[CUSTOMCOMMANDS] malloc() failed");
 
         closedir(dir);
-        return NULL;
+        return -1;
     }
     log_trace("[CUSTOMCOMMANDS] malloc() success");
 
@@ -69,7 +70,7 @@ command_list* customcommands_initialize(u64snowflake application_id) {
 
             fclose(file);
             closedir(dir);
-            return NULL;
+            return -1;
         }
         log_trace("[CUSTOMCOMMANDS] malloc() success");
         fread(data, 1, size, file);
@@ -82,51 +83,46 @@ command_list* customcommands_initialize(u64snowflake application_id) {
         discord_embed_from_json(data, size, embed);
 
         // allocate memory for the new command
-        commands->commands = realloc(commands->commands, (commands->count + 1) * sizeof(struct discord_application_command));
-        if (!commands->commands) {
+        commands.commands = realloc(commands.commands, (commands.count + 1) * sizeof(struct discord_application_command));
+        if (!commands.commands) {
             log_trace("[CUSTOMCOMMANDS] malloc() failed");
 
             free(data);
             closedir(dir);
-            return NULL;
+            return -1;
         }
         log_trace("[CUSTOMCOMMANDS] malloc() success");
 
         // create the command
-        struct discord_application_command *command = calloc(1, sizeof(struct discord_application_command));
-        command->type = DISCORD_APPLICATION_CHAT_INPUT;
+        discord_commands[commands.count].type = DISCORD_APPLICATION_CHAT_INPUT;
         entry->d_name[name_length - 5] = '\0'; // remove '.json' from the name
-        command->name = strdup(entry->d_name);
+        discord_commands[commands.count].name = strdup(entry->d_name);
         sprintf(description, "Learn more about %s", entry->d_name);
-        command->description = strdup(description);
-        command->default_permission = true;
-        command->application_id = application_id;
+        discord_commands[commands.count].description = strdup(description);
+        discord_commands[commands.count].default_permission = true;
+        discord_commands[commands.count].application_id = application_id;
 
         // cleanup
         free(data);
 
         // fill structure
-        commands->commands[commands->count].name = command->name;
-        commands->commands[commands->count].description = command->description;
-        commands->commands[commands->count].embed = embed;
-        commands->commands[commands->count].command = command;
-        commands->count++;
+        commands.commands[commands.count].name = discord_commands[commands.count].name;
+        commands.commands[commands.count].description = discord_commands[commands.count].description;
+        commands.commands[commands.count].embed = embed;
+        commands.count++;
     }
 
     // cleanup
     closedir(dir);
-    return commands;
+    return commands.count;
 }
 
 void customcommands_on_slash_command(struct discord *client, const struct discord_interaction *event) {
-    if (!commands)
-        return;
-
     // find the command
     custom_command *command = NULL;
-    for (int i = 0; i < commands->count; i++) {
-        if (strcmp(event->data->name, commands->commands[i].name) == 0) {
-            command = &commands->commands[i];
+    for (int i = 0; i < commands.count; i++) {
+        if (strcmp(event->data->name, commands.commands[i].name) == 0) {
+            command = &commands.commands[i];
             break;
         }
     }
@@ -148,18 +144,12 @@ void customcommands_on_slash_command(struct discord *client, const struct discor
 }
 
 void customcommands_deinitialize() {
-    if (!commands)
-        return;
-
-    for (int i = 0; i < commands->count; i++) {
-        free(commands->commands[i].name);
-        free(commands->commands[i].description);
-        discord_embed_cleanup(commands->commands[i].embed);
-        free(commands->commands[i].embed);
-        free(commands->commands[i].command);
+    for (int i = 0; i < commands.count; i++) {
+        free(commands.commands[i].name);
+        free(commands.commands[i].description);
+        discord_embed_cleanup(commands.commands[i].embed);
+        free(commands.commands[i].embed);
     }
 
-    free(commands->commands);
-    free(commands);
-    commands = NULL;
+    free(commands.commands);
 }
