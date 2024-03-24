@@ -82,6 +82,8 @@ static void on_interaction(struct discord *client, const struct discord_interact
     }
 }
 
+bool is_initialized = false; ///< Whether the bot has been initialized
+
 /**
  * Main bot function
  *
@@ -89,33 +91,40 @@ static void on_interaction(struct discord *client, const struct discord_interact
  * \param event Ready event
  */
 static void bot_main(struct discord *client, const struct discord_ready *event) {
-    // get slash commands from custom commands module
+    if (is_initialized) return;
+    is_initialized = true;
+
+    struct discord_application_command commands[32] = {0};
+    int command_count = 0;
+
+    // initialize custom commands
     log_info("[TAS8999] Initializing custom slash commands...");
-    command_list* custom_commands = customcommands_initialize(event->application->id);
-    if (!custom_commands) {
+    int status = customcommands_initialize(commands, event->application->id);
+    if (status < 0) {
         log_fatal("[TAS8999] Failed to initialize custom slash commands");
 
         discord_shutdown(client);
         return;
     }
+    command_count += status;
+
+    // initialize submissions
+    log_info("[TAS8999] Initializing submissions slash command...");
+    status = submissions_initialize(commands + command_count, client, event->application->id);
+    if (status < 0) {
+        log_fatal("[TAS8999] Failed to initialize submissions slash command");
+
+        discord_shutdown(client);
+        return;
+    }
+    command_count += status;
 
     // update slash commands
     log_info("[TAS8999] Updating slash commands...");
-    struct discord_application_command* commands = calloc(custom_commands->count, sizeof(struct discord_application_command));
-    for (int i = 0; i < custom_commands->count; i++) commands[i] = *custom_commands->commands[i].command;
-
-    discord_set_on_interaction_create(client, on_interaction);
     discord_bulk_overwrite_global_application_commands(client, event->application->id, &(struct discord_application_commands) {
-        .size = custom_commands->count,
+        .size = command_count,
         .array = commands
     }, NULL);
-
-    // cleanup
-    free(commands);
-
-    // add slash command from submissions module
-    log_info("[TAS8999] Initializing submissions slash command...");
-    submissions_initialize(client, event->application->id);
 }
 
 /**
@@ -138,6 +147,7 @@ int main() {
     signal(SIGINT, handle_sigint);
     discord_add_intents(client, DISCORD_GATEWAY_MESSAGE_CONTENT);
     discord_set_on_ready(client, bot_main);
+    discord_set_on_interaction_create(client, on_interaction);
     discord_set_on_message_create(client, spamprotection_on_message);
     CCORDcode code = discord_run(client);
 
