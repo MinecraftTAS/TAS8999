@@ -1,9 +1,10 @@
 // configure plugins
 plugins {
 	// java application plugin
+    id 'java'
     id 'application'
-	// shadow plugin
-	id 'com.github.johnrengelman.shadow' version '8.1.1'
+    id "com.diffplug.spotless" version "8.4.0"
+    id 'com.gradleup.shadow' version '9.4.1'
 }
 
 // configure repositories
@@ -15,19 +16,20 @@ repositories {
 // configure dependencies
 dependencies {
 	// jda discord api
-	implementation group: 'net.dv8tion', name: 'JDA', version: '5.0.0-beta.12'
-	// logger
-	implementation group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.3'
-
-	// lombok
-	compileOnly 'org.projectlombok:lombok:1.18.28'
-	annotationProcessor 'org.projectlombok:lombok:1.18.28'
+	implementation("net.dv8tion:JDA:6.4.1") {
+      	exclude module: 'opus-java'
+      	exclude module: 'tink'
+    }
+    
+    implementation("ch.qos.logback:logback-classic:1.5.32")
 }
+
+version = project.version
 
 // configure jar
 base {
 	// change compiled filename
-	archivesName = "TAS8999-v2.0.0-SNAPSHOT"
+	archivesName = "TAS8999"
 }
 
 // set application main class
@@ -37,28 +39,15 @@ application {
 
 // compile for java 20
 java {
-	sourceCompatibility = targetCompatibility = JavaVersion.VERSION_20
+	sourceCompatibility = targetCompatibility = 24
 }
 
-// upload tas8999 task [login via key]
-tasks.register('upload', Exec) {
-	workingDir "${buildDir}/libs"
-	commandLine "cmd.exe /k echo put ${base.archivesName.get()}-all.jar | sftp -oPort=13524 pancake@mgnet.work".split(" ")
+spotless {
+	encoding "UTF-8"
+	lineEndings "UNIX"
+	java {
+	importOrderFile("formatter/Importorder.txt")
+	eclipse().configFile("formatter/Formatter.xml")
+	}
+	enforceCheck false
 }
-
-// copy tas8999 task
-tasks.register('copyTAS8999', Exec) {
-	workingDir "${buildDir}/libs"
-	commandLine "ssh -p 13524 pancake@mgnet.work echo ${pancake_password} | sudo -S -u root cp /home/pancake/${base.archivesName.get()}-all.jar /home/tas/tas8999/tas8999.jar".split(" ")
-}
-
-// restart tas8999 task
-tasks.register('restartTAS8999', Exec) {
-	workingDir "${buildDir}/libs"
-	commandLine "ssh -p 13524 pancake@mgnet.work echo ${pancake_password} | sudo -S -u root systemctl -M tas@ --user restart tas8999".split(" ")
-}
-
-upload.dependsOn = ['shadowJar']
-upload.finalizedBy(copyTAS8999)
-copyTAS8999.finalizedBy(restartTAS8999)
-upload.group = 'tas8999'

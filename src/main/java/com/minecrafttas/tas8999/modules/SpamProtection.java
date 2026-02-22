@@ -1,14 +1,15 @@
 package com.minecrafttas.tas8999.modules;
 
-import net.dv8tion.jda.api.entities.Message;
-import net.dv8tion.jda.api.entities.User;
+import static com.minecrafttas.tas8999.TAS8999.LOGGER;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import static com.minecrafttas.tas8999.TAS8999.LOGGER;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.User;
 
 /**
  * Discord spam/scam protection
@@ -25,11 +26,11 @@ public class SpamProtection extends TimerTask {
 		this.suspiciousUsers = new ArrayList<>();
 
 		var timer = new Timer("Spam Protection", true);
-		timer.scheduleAtFixedRate(this, 0L,  10L);
+		timer.scheduleAtFixedRate(this, 0L, 100L);
 	}
 
 	/**
-	 * Update spam protection every 10ms
+	 * Update spam protection every 100ms
 	 */
 	@Override
 	public void run() {
@@ -37,19 +38,15 @@ public class SpamProtection extends TimerTask {
 	}
 
 	public void checkMessage(Message msg) {
-		// check for link
-		if (!this.containsLink(msg))
-			return;
 
 		// check for valid member
-		if (msg.getMember() == null)
+		if (msg.getMember() == null || msg.getAuthor().isBot())
 			return;
 
-
 		// get or create user data
-		var author = msg.getAuthor();
-		var guild = msg.getGuild();
-		var userData = this.get(author);
+		User author = msg.getAuthor();
+		Guild guild = msg.getGuild();
+		UserData userData = this.get(author);
 		if (userData == null)
 			suspiciousUsers.add(userData = new UserData(author, System.currentTimeMillis(), new ArrayList<>()));
 
@@ -57,7 +54,7 @@ public class SpamProtection extends TimerTask {
 		userData.messages().add(msg);
 
 		// kick user on third post in separate channels
-		var count = userData.messages().stream().map(Message::getChannel).distinct().count();
+		long count = userData.messages().stream().map(Message::getChannel).distinct().count();
 		if (count == 3) {
 			LOGGER.info("Trying to kick {}", author.getName());
 
@@ -69,25 +66,7 @@ public class SpamProtection extends TimerTask {
 
 	}
 
-	private record UserData(User user, long timestamp, List<Message> messages) {}
-
-	/**
-	 * Check if message contains link
-	 * @param message Message
-	 * @return Contains link
-	 */
-	private boolean containsLink(Message message) {
-		var content = message.getContentStripped();
-		if (content.isEmpty())
-			return false;
-
-		var words = content.split(" ");
-
-		for (var word : words)
-			if (word.matches("https?://.+\\..+"))
-				return true;
-
-		return false;
+	private record UserData(User user, long timestamp, List<Message> messages) {
 	}
 
 	/**
