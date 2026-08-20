@@ -1,43 +1,33 @@
-// configure plugins
 plugins {
-	// java application plugin
-    id 'java'
-    id 'application'
-    id "com.diffplug.spotless" version "8.4.0"
-    id 'com.gradleup.shadow' version '9.4.1'
+	id 'java'
+	id 'application'
+	id "com.diffplug.spotless" version "8.4.0"
+	id 'com.gradleup.shadow' version '9.4.1'
 }
 
-// configure repositories
 repositories {
-	// add maven central
 	mavenCentral()
 }
 
-// configure dependencies
 dependencies {
-	// jda discord api
 	implementation("net.dv8tion:JDA:6.4.1") {
-      	exclude module: 'opus-java'
-      	exclude module: 'tink'
-    }
-    
-    implementation("ch.qos.logback:logback-classic:1.5.32")
+		exclude module: 'opus-java'
+		exclude module: 'tink'
+	}
+
+	implementation("ch.qos.logback:logback-classic:1.5.32")
 }
 
 version = project.version
 
-// configure jar
 base {
-	// change compiled filename
 	archivesName = "TAS8999"
 }
 
-// set application main class
 application {
 	mainClass = 'com.minecrafttas.tas8999.TAS8999'
 }
 
-// compile for java 20
 java {
 	sourceCompatibility = targetCompatibility = 24
 }
@@ -46,8 +36,8 @@ spotless {
 	encoding "UTF-8"
 	lineEndings "UNIX"
 	java {
-	importOrderFile("formatter/Importorder.txt")
-	eclipse().configFile("formatter/Formatter.xml")
+		importOrderFile("formatter/Importorder.txt")
+		eclipse().configFile("formatter/Formatter.xml")
 	}
 	enforceCheck false
 }
