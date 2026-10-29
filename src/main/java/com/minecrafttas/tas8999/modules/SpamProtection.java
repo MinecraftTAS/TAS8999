@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.TimeUnit;
 
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Message;
@@ -34,7 +35,7 @@ public class SpamProtection extends TimerTask {
 	 */
 	@Override
 	public void run() {
-		this.suspiciousUsers.removeIf(user -> (System.currentTimeMillis() - user.timestamp) > 10000);
+		this.suspiciousUsers.removeIf(user -> (System.currentTimeMillis() - user.timestamp) > TimeUnit.SECONDS.toMillis(10));
 	}
 
 	public void checkMessage(Message msg) {
