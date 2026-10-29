@@ -10,7 +10,7 @@ repositories {
 }
 
 dependencies {
-	implementation("net.dv8tion:JDA:6.4.1") {
+	implementation("net.dv8tion:JDA:6.7.0") {
 		exclude module: 'opus-java'
 		exclude module: 'tink'
 	}

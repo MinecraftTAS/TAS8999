@@ -1,6 +1,10 @@
 package com.minecrafttas.tas8999.modules;
 
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import com.minecrafttas.tas8999.TAS8999;
 
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
@@ -57,7 +61,7 @@ public class SubmissionManagement {
 	}
 
 	/**
-	 * Submit TAS to new-misc-things
+	 * Submit a url to the submission channel
 	 * @param event Event
 	 * @param channelId Submission channel
 	 * @param url Video URL
@@ -76,6 +80,8 @@ public class SubmissionManagement {
 		TextChannel channel = guild.getTextChannelById(channelId);
 		if (channel == null)
 			return;
+
+		url = stripQueryParams(url);
 
 		String message = (comment == null ? "No comment." : '"' + comment + '"') + '\n' + url + '\n' + "Submitted by " + author.getAsMention();
 		if (requiresConfirmation) {
@@ -106,9 +112,24 @@ public class SubmissionManagement {
 	}
 
 	/**
+	 * Removes the query parameters from the url
+	 * @param url The url to check
+	 * @return The stripped url
+	 */
+	private String stripQueryParams(String url) {
+		Pattern pattern = Pattern.compile("\\?.+$");
+		Matcher matcher = pattern.matcher(url);
+		if (matcher.find()) {
+			TAS8999.LOGGER.info("Removing query parameters from url {}", url);
+			return matcher.replaceAll("");
+		} else
+			return url;
+	}
+
+	/**
 	 * Run confirmation on button
 	 * @param event Event
-	 * @param  message Message
+	 * @param message Message
 	 */
 	public void onButton(ButtonInteractionEvent event, Message message) {
 		if (event.getChannel().getIdLong() != SUBMISSIONS)
@@ -131,6 +152,10 @@ public class SubmissionManagement {
 		}
 	}
 
+	/**
+	 * Disables the buttons, once one of them is pressed
+	 * @param event The interaction event
+	 */
 	private void disableButtons(ButtonInteractionEvent event) {
 		Button approve = event.getMessage().getComponents().get(0).asActionRow().getButtons().get(0).asDisabled();
 		Button reject = event.getMessage().getComponents().get(0).asActionRow().getButtons().get(1).asDisabled();
