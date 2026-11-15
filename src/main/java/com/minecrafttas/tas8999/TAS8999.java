@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.minecrafttas.tas8999.modules.CustomCommands;
+import com.minecrafttas.tas8999.modules.PingPermissions;
 import com.minecrafttas.tas8999.modules.SpamProtection;
 import com.minecrafttas.tas8999.modules.SubmissionManagement;
 
@@ -41,6 +42,7 @@ public class TAS8999 extends ListenerAdapter {
 	private final SpamProtection spamProtection;
 	private final CustomCommands commandHandler;
 	private final SubmissionManagement submissionManagement;
+	private final PingPermissions pingPermissions;
 
 	/**
 	 * Initialize TAS8999
@@ -64,6 +66,7 @@ public class TAS8999 extends ListenerAdapter {
 		this.spamProtection = new SpamProtection();
 		this.commandHandler = new CustomCommands(jda);
 		this.submissionManagement = new SubmissionManagement(jda);
+		this.pingPermissions = new PingPermissions(jda);
 
 		LOGGER.info("TAS8999 fully loaded");
 	}
@@ -84,6 +87,7 @@ public class TAS8999 extends ListenerAdapter {
 	@Override
 	public void onMessageReceived(MessageReceivedEvent event) {
 		this.spamProtection.checkMessage(event.getMessage());
+		this.pingPermissions.onMessage(event);
 	}
 
 	/**
@@ -92,24 +96,26 @@ public class TAS8999 extends ListenerAdapter {
 	 */
 	@Override
 	public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
-		var commandPath = event.getFullCommandName().replace(' ', '/');
+		String commandPath = event.getFullCommandName().replace(' ', '/');
 
-		if (!commandHandler.executeCommand(event, event.getName()) && commandPath.startsWith("customcommand/")) {
-			var name = event.getOption("name").getAsString();
-
+		/*if (!commandHandler.executeCommand(event, event.getName()) && commandPath.startsWith("customcommand/")) {
+			String name = event.getOption("name").getAsString();
+		
 			switch (commandPath) {
 				case "customcommand/upsert" -> event.getChannel().retrieveMessageById(event.getOption("messageid").getAsString()).queue(message -> commandHandler.addCommand(event, event.getGuild(), true, name, event.getOption("description").getAsString(), message.getContentRaw()));
 				case "customcommand/rename" -> commandHandler.renameCommand(event, name, event.getOption("newname").getAsString());
 				case "customcommand/remove" -> commandHandler.removeCommand(event, name);
 			}
-		} else if (commandPath.startsWith("submit/")) {
-			var url = event.getOption("url").getAsString();
-			var comment = event.getOption("comment", null, option -> option.getAsString());
+		} else*/ if (commandPath.startsWith("submit/")) {
+			String url = event.getOption("url").getAsString();
+			String comment = event.getOption("comment", null, option -> option.getAsString());
 
 			switch (commandPath) {
 				case "submit/tas" -> this.submissionManagement.onSubmission(event, 399223722491510794L, url, comment, true);
 				case "submit/misc" -> this.submissionManagement.onSubmission(event, 555113094570049577L, url, comment, false);
 			}
+		} else if (commandPath.startsWith("pingpermission/")) {
+			pingPermissions.onSlashCommand(event);
 		}
 	}
 }
