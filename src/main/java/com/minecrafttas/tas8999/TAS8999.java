@@ -3,11 +3,13 @@ package com.minecrafttas.tas8999;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.minecrafttas.tas8999.modules.CustomCommands;
 import com.minecrafttas.tas8999.modules.SpamProtection;
 import com.minecrafttas.tas8999.modules.SubmissionManagement;
 
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
+import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
@@ -37,7 +39,7 @@ public class TAS8999 extends ListenerAdapter {
 	public static final long TB_VIDEOS = 803651015383187456L;
 
 	private final SpamProtection spamProtection;
-//	private final CustomCommands commandHandler;
+	private final CustomCommands commandHandler;
 	private final SubmissionManagement submissionManagement;
 
 	/**
@@ -54,9 +56,13 @@ public class TAS8999 extends ListenerAdapter {
 				.awaitReady();
 		//@formatter:on
 
+		for (Guild guild : jda.getGuilds()) {
+			guild.updateCommands().queue();
+		}
+
 		// initialize modules
 		this.spamProtection = new SpamProtection();
-//		this.commandHandler = new CustomCommands(jda);
+		this.commandHandler = new CustomCommands(jda);
 		this.submissionManagement = new SubmissionManagement(jda);
 
 		LOGGER.info("TAS8999 fully loaded");
@@ -88,22 +94,21 @@ public class TAS8999 extends ListenerAdapter {
 	public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
 		var commandPath = event.getFullCommandName().replace(' ', '/');
 
-		/*if (!commandHandler.executeCommand(event, event.getName()) && commandPath.startsWith("customcommand/")) {
+		if (!commandHandler.executeCommand(event, event.getName()) && commandPath.startsWith("customcommand/")) {
 			var name = event.getOption("name").getAsString();
-		
+
 			switch (commandPath) {
 				case "customcommand/upsert" -> event.getChannel().retrieveMessageById(event.getOption("messageid").getAsString()).queue(message -> commandHandler.addCommand(event, event.getGuild(), true, name, event.getOption("description").getAsString(), message.getContentRaw()));
 				case "customcommand/rename" -> commandHandler.renameCommand(event, name, event.getOption("newname").getAsString());
 				case "customcommand/remove" -> commandHandler.removeCommand(event, name);
 			}
-		} else*/ if (commandPath.startsWith("submit/")) {
+		} else if (commandPath.startsWith("submit/")) {
 			var url = event.getOption("url").getAsString();
 			var comment = event.getOption("comment", null, option -> option.getAsString());
 
 			switch (commandPath) {
 				case "submit/tas" -> this.submissionManagement.onSubmission(event, 399223722491510794L, url, comment, true);
 				case "submit/misc" -> this.submissionManagement.onSubmission(event, 555113094570049577L, url, comment, false);
-//				case "submit/tasbattle" -> this.submissionManagement.onMiscSubmission(event, 803651015383187456L, url, comment, true);
 			}
 		}
 	}

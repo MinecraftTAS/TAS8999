@@ -16,7 +16,6 @@ import net.dv8tion.jda.api.interactions.commands.DefaultMemberPermissions;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
-import net.dv8tion.jda.api.requests.restaction.CommandListUpdateAction;
 import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import net.dv8tion.jda.internal.interactions.CommandDataImpl;
 
@@ -50,7 +49,6 @@ public class CustomCommands {
 			});
 
 			// load main commands
-			CommandListUpdateAction updater = guild.updateCommands();
 
 			CommandDataImpl customCommand = new CommandDataImpl("customcommand", "Command for adding and upating customcommands");
 			SubcommandData upsertSubCommand = new SubcommandData("upsert", "Adds or updates a new custom command");
@@ -69,8 +67,7 @@ public class CustomCommands {
 			customCommand.setDefaultPermissions(DefaultMemberPermissions.enabledFor(Permission.MODERATE_MEMBERS));
 			customCommand.addSubcommands(upsertSubCommand, renameSubCommand, removeSubCommand);
 
-			updater.addCommands(customCommand);
-			updater.queue();
+			guild.upsertCommand(customCommand).queue();
 		}
 	}
 
@@ -85,21 +82,19 @@ public class CustomCommands {
 		if (guild == null)
 			return false;
 
-		if (!this.storage.contains(guild, name))
+		if (!this.storage.contains(guild, name)) {
+			guild.deleteCommandById(event.getCommandId()).queue();
 			return false;
+		}
 
 		// build and reply
 		MessageCreateBuilder msgBuilder = new MessageCreateBuilder();
 		EmbedBuilder embedBuilder = new EmbedBuilder();
-	
-		embedBuilder
-			.setDescription(this.getTextByName(guild, name))
-			.setColor(COLOR)
-			.setFooter(String.format("/%s",name))
-			;
-		
+
+		embedBuilder.setDescription(this.getTextByName(guild, name)).setColor(COLOR).setFooter(String.format("/%s", name));
+
 		msgBuilder.addEmbeds(embedBuilder.build());
-		
+
 		try {
 			event.reply(msgBuilder.build()).setEphemeral(false).queue();
 		} catch (Exception e) {
@@ -123,15 +118,11 @@ public class CustomCommands {
 
 				MessageCreateBuilder msgBuilder = new MessageCreateBuilder();
 				EmbedBuilder embedBuilder = new EmbedBuilder();
-			
-				embedBuilder
-					.setDescription(this.getTextByName(guild, name))
-					.setColor(COLOR)
-					.setFooter(String.format("/%s",name))
-					;
-				
+
+				embedBuilder.setDescription(this.getTextByName(guild, name)).setColor(COLOR).setFooter(String.format("/%s", name));
+
 				msgBuilder.addEmbeds(embedBuilder.build());
-				
+
 				this.storage.set(guild, name, command.getId() + SEPARATOR + description + SEPARATOR + message);
 				if (shouldSave)
 					this.storage.saveGuild(guild);

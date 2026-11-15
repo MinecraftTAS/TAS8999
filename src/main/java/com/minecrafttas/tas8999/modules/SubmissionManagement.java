@@ -1,10 +1,11 @@
 package com.minecrafttas.tas8999.modules;
 
+import java.io.UnsupportedEncodingException;
+import java.net.MalformedURLException;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import com.minecrafttas.tas8999.TAS8999;
+import com.minecrafttas.tas8999.utils.URLUtil;
 
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
@@ -20,7 +21,6 @@ import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
-import net.dv8tion.jda.api.requests.restaction.CommandListUpdateAction;
 import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import net.dv8tion.jda.internal.interactions.CommandDataImpl;
 
@@ -39,8 +39,6 @@ public class SubmissionManagement {
 	public SubmissionManagement(JDA bot) {
 		// load commands
 		for (Guild guild : bot.getGuilds()) {
-			CommandListUpdateAction updater = guild.updateCommands();
-
 			CommandDataImpl submitCommand = new CommandDataImpl("submit", "Submit a TAS");
 			SubcommandData tasSubCommand = new SubcommandData("tas", "Submit to #new-tas-things");
 			SubcommandData miscSubCommand = new SubcommandData("misc", "Submit to #new-misc-things (does not require confirmation through moderator)");
@@ -55,8 +53,7 @@ public class SubmissionManagement {
 
 			submitCommand.addSubcommands(tasSubCommand, miscSubCommand/*, tasbatteSubCommand*/);
 
-			updater.addCommands(submitCommand);
-			updater.queue();
+			guild.upsertCommand(submitCommand).queue();
 		}
 	}
 
@@ -81,11 +78,24 @@ public class SubmissionManagement {
 		if (channel == null)
 			return;
 
-		url = stripQueryParams(url);
+		TextChannel submChannel = guild.getTextChannelById(SUBMISSIONS);
+
+		TAS8999.LOGGER.info("Submitting url:{}, comment: {}, channel: {}, confirmation: {}", url, comment, channelId, requiresConfirmation);
+		try {
+			url = stripQueryParams(url);
+		} catch (MalformedURLException | IllegalArgumentException e) {
+			event.reply("The submission is not a proper URL. If this is an error with the bot, please ping @scribbletas for help").setEphemeral(true).queue();
+			TAS8999.LOGGER.error("Error stripping query params", e);
+			return;
+		} catch (UnsupportedEncodingException e) {
+			event.reply("An error occured in the bot while checking your submission URL, this should not happen. The moderators have been notified").setEphemeral(true).queue();
+			submChannel.sendMessage(String.format("Submissions are throwing errors: `%s`", e.getMessage()));
+			TAS8999.LOGGER.error("Error stripping query params", e);
+			return;
+		}
 
 		String message = (comment == null ? "No comment." : '"' + comment + '"') + '\n' + url + '\n' + "Submitted by " + author.getAsMention();
 		if (requiresConfirmation) {
-			TextChannel submChannel = guild.getTextChannelById(SUBMISSIONS);
 			if (submChannel == null)
 				return;
 
@@ -102,7 +112,7 @@ public class SubmissionManagement {
 
 			submChannel.sendMessage(msgBuilder.build()).queue();
 
-			event.reply("Your submission has been posted to the moderators for confirmation. You will get notified via dm if your tas was rejected.").setEphemeral(true).queue();
+			event.reply("Your submission has been posted to the moderators for confirmation. You will get notified via DM if your tas was rejected.").setEphemeral(true).queue();
 		} else {
 			channel.sendMessage(message).queue(msg -> {
 				channel.createThreadChannel("Discussion", msg.getIdLong()).queue();
@@ -115,15 +125,12 @@ public class SubmissionManagement {
 	 * Removes the query parameters from the url
 	 * @param url The url to check
 	 * @return The stripped url
+	 * @throws MalformedURLException, UnsupportedEncodingException
 	 */
-	private String stripQueryParams(String url) {
-		Pattern pattern = Pattern.compile("\\?.+$");
-		Matcher matcher = pattern.matcher(url);
-		if (matcher.find()) {
-			TAS8999.LOGGER.info("Removing query parameters from url {}", url);
-			return matcher.replaceAll("");
-		} else
-			return url;
+	private String stripQueryParams(String url) throws MalformedURLException, IllegalArgumentException, UnsupportedEncodingException {
+		URLUtil urlutil = new URLUtil(url);
+		urlutil.removeQueryParam("si", "is", "list", "start_radio", "lc");
+		return urlutil.build();
 	}
 
 	/**

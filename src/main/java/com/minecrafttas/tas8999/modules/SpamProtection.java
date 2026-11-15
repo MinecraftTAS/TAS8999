@@ -11,6 +11,8 @@ import java.util.concurrent.TimeUnit;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.channel.concrete.VoiceChannel;
+import net.dv8tion.jda.api.entities.channel.unions.MessageChannelUnion;
 
 /**
  * Discord spam/scam protection
@@ -47,6 +49,10 @@ public class SpamProtection extends TimerTask {
 		// get or create user data
 		User author = msg.getAuthor();
 		Guild guild = msg.getGuild();
+		MessageChannelUnion channel = msg.getChannel();
+		if (channel instanceof VoiceChannel) {
+
+		}
 		UserData userData = this.get(author);
 		if (userData == null)
 			suspiciousUsers.add(userData = new UserData(author, System.currentTimeMillis(), new ArrayList<>()));
@@ -82,5 +88,4 @@ public class SpamProtection extends TimerTask {
 
 		return null;
 	}
-
 }
