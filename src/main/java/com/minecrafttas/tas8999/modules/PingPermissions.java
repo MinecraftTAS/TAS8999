@@ -15,8 +15,10 @@ import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.Message.MentionType;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.channel.Channel;
+import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.interactions.commands.Command;
@@ -25,6 +27,7 @@ import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandGroupData;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import net.dv8tion.jda.internal.interactions.CommandDataImpl;
 
 public class PingPermissions {
@@ -450,28 +453,44 @@ public class PingPermissions {
 		Message msg = event.getMessage();
 		String msgText = msg.getContentRaw();
 
-		Pattern rolePattern = Pattern.compile("<@&(\\d{19})>");
-		Matcher roleMatcher = rolePattern.matcher(msgText);
-
-		if (!roleMatcher.find()) {
-			return;
-		}
-
 		Guild guild = event.getGuild();
 		Member author = event.getMember();
 		Channel channel = event.getChannel();
 
-		String pingedRoleId = roleMatcher.group(1);
-		Role pingedRole = guild.getRoleById(pingedRoleId);
-
-//		if (author.isOwner())
-//			return;
-
-		PingPermissionData data = get(pingedRole);
-		if (!data.isChannelPermitted(channel) || !data.isMemberOrRolePermitted(author))
+		if (author.isOwner())
 			return;
 
-		if (!channel.getType().isMessage())
+		Pattern rolePattern = MentionType.ROLE.getPattern();
+		Matcher roleMatcher = rolePattern.matcher(msgText);
+
+		// Iterate through all roles in the message and stop if one is not permitted
+		while (roleMatcher.find()) {
+			String pingedRoleId = roleMatcher.group(1);
+			Role pingedRole = guild.getRoleById(pingedRoleId);
+
+			if (pingedRole.isMentionable())
+				continue;
+
+			PingPermissionData data = get(pingedRole);
+			if (!data.isChannelPermitted(channel) || !data.isMemberOrRolePermitted(author))
+				return;
+
+			if (!channel.getType().isMessage())
+				return;
+		}
+
+		// Ensure @everyone and @here not getting called
+		if (MentionType.EVERYONE.getPattern().matcher(msgText).find() || MentionType.HERE.getPattern().matcher(msgText).find()) {
 			return;
+		}
+
+		MessageChannel msgChannel = (MessageChannel) channel;
+
+		MessageCreateBuilder builder = new MessageCreateBuilder();
+		builder.setAllowedMentions(List.of(MentionType.ROLE));
+		builder.setContent(msgText);
+		msgChannel.sendMessage(builder.build()).queue(createdMessage -> {
+			createdMessage.delete().queue();
+		});
 	}
 }
