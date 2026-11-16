@@ -120,7 +120,7 @@ public class PingPermissions {
 		public PingPermissionData(Guild guild, String[] permittedMembers, String[] permittedRoles, String[] permittedChannels) {
 			List<Member> members = new ArrayList<>();
 			if (permittedMembers.length != 0)
-				members = Stream.of(permittedMembers).filter(e -> !e.isEmpty()).map(e -> guild.getMemberById(e)).collect(Collectors.toList());
+				members = Stream.of(permittedMembers).filter(e -> !e.isEmpty()).map(e -> guild.retrieveMemberById(e).complete()).collect(Collectors.toList());
 
 			List<Role> roles = new ArrayList<>();
 			if (permittedRoles.length != 0)
@@ -305,7 +305,7 @@ public class PingPermissions {
 	}
 
 	public void printRoleToPing(SlashCommandInteractionEvent event, Role pingableRole) {
-		logger.info("{{}} Printing role to ping for user {}", event.getGuild(), event.getUser().getName());
+		logger.info("{{}} Printing role to ping for user {}", event.getGuild().getName(), event.getUser().getName());
 		PingPermissionData data = get(pingableRole);
 
 		Channel channel = event.getChannel();
@@ -352,7 +352,7 @@ public class PingPermissions {
 	}
 
 	public void printPermissions(SlashCommandInteractionEvent event, Role pingableRole) {
-		logger.info("{{}} Printing permissions for user {}", event.getGuild(), event.getUser().getName());
+		logger.info("{{}} Printing permissions for user {}", event.getGuild().getName(), event.getUser().getName());
 		PingPermissionData data = get(pingableRole);
 		EmbedBuilder builder = new EmbedBuilder();
 		builder.setColor(COLOR);
@@ -415,12 +415,12 @@ public class PingPermissions {
 				switch (event.getSubcommandName()) {
 					case "add":
 						addMember(pingableRole, permittedUser);
-						logger.info(String.format("Added user %s to role %s", permittedUser.getUser().getAsMention(), pingableRole.getAsMention()));
+						logger.info(String.format("{%s} Added user %s to role %s", event.getGuild().getName(), permittedUser.getUser().getName(), pingableRole.getName()));
 						event.reply(String.format("Added user %s to role %s", permittedUser.getUser().getAsMention(), pingableRole.getAsMention())).setEphemeral(true).queue();
 						return;
 					case "remove":
 						removeUser(pingableRole, permittedUser);
-						logger.info(String.format("Removed user %s from role %s", permittedUser.getUser().getAsMention(), pingableRole.getAsMention()));
+						logger.info(String.format("{%s} Removed user %s from role %s", event.getGuild().getName(), permittedUser.getUser().getName(), pingableRole.getName()));
 						event.reply(String.format("Removed user %s from role %s", permittedUser.getUser().getAsMention(), pingableRole.getAsMention())).setEphemeral(true).queue();
 						return;
 				}
@@ -431,13 +431,13 @@ public class PingPermissions {
 				switch (event.getSubcommandName()) {
 					case "add":
 						addRole(pingableRole2, permittedRole);
-						logger.info(String.format("Added role %s to role %s", permittedRole.getAsMention(), pingableRole2.getAsMention()));
+						logger.info(String.format("{%s} Added role %s to role %s", event.getGuild().getName(), permittedRole.getName(), pingableRole2.getName()));
 						event.reply(String.format("Added role %s to role %s", permittedRole.getAsMention(), pingableRole2.getAsMention())).setEphemeral(true).queue();
 						return;
 					case "remove":
 						removeRole(pingableRole2, permittedRole);
-						logger.info(String.format("Removed role %s from role %s", permittedRole.getName(), pingableRole2.getName()));
-						event.reply(String.format("Removed role %s from role %s", permittedRole.getName(), pingableRole2.getName())).setEphemeral(true).queue();
+						logger.info(String.format("{%s} Removed role %s from role %s", event.getGuild().getName(), permittedRole.getName(), pingableRole2.getName()));
+						event.reply(String.format("Removed role %s from role %s", permittedRole.getAsMention(), pingableRole2.getAsMention())).setEphemeral(true).queue();
 						return;
 				}
 				break;
@@ -447,12 +447,12 @@ public class PingPermissions {
 				switch (event.getSubcommandName()) {
 					case "add":
 						addChannel(pingableRole3, permittedChannel);
-						logger.info(String.format("Added channel %s to role %s", permittedChannel.getAsMention(), pingableRole3.getAsMention()));
+						logger.info(String.format("{%s} Added channel %s to role %s", event.getGuild().getName(), permittedChannel.getName(), pingableRole3.getName()));
 						event.reply(String.format("Added channel %s to role %s", permittedChannel.getAsMention(), pingableRole3.getAsMention())).setEphemeral(true).queue();
 						return;
 					case "remove":
 						removeChannel(pingableRole3, permittedChannel);
-						logger.info(String.format("Removed channel %s from role %s", permittedChannel.getAsMention(), pingableRole3.getAsMention()));
+						logger.info(String.format("{%s} Removed channel %s from role %s", event.getGuild().getName(), permittedChannel.getName(), pingableRole3.getName()));
 						event.reply(String.format("Removed channel %s from role %s", permittedChannel.getAsMention(), pingableRole3.getAsMention())).setEphemeral(true).queue();
 						return;
 				}
@@ -468,7 +468,7 @@ public class PingPermissions {
 		Member author = event.getMember();
 		Channel channel = event.getChannel();
 
-		if (isBot(guild, author))
+		if (author.isOwner() || isBot(guild, author))
 			return;
 
 		Pattern rolePattern = MentionType.ROLE.getPattern();
