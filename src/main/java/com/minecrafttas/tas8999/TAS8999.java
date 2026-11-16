@@ -61,7 +61,7 @@ public class TAS8999 extends ListenerAdapter {
 		this.spamProtection = new SpamProtection();
 		this.commandHandler = new CustomCommands(jda);
 		this.submissionManagement = new SubmissionManagement(jda);
-		this.pingPermissions = new PingPermissions(jda);
+		this.pingPermissions = new PingPermissions(jda, LOGGER);
 
 		LOGGER.info("TAS8999 fully loaded");
 	}

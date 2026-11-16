@@ -8,6 +8,8 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.slf4j.Logger;
+
 import com.minecrafttas.tas8999.utils.GuildStorage;
 
 import net.dv8tion.jda.api.EmbedBuilder;
@@ -32,11 +34,12 @@ import net.dv8tion.jda.internal.interactions.CommandDataImpl;
 
 public class PingPermissions {
 
+	private final Logger logger;
 	private final GuildStorage storage;
 	public static final int COLOR = 0x05808e;
 
-	public PingPermissions(JDA bot) {
-
+	public PingPermissions(JDA bot, Logger logger) {
+		this.logger = logger;
 		// load guilds
 		this.storage = new GuildStorage("ping_permissions");
 		for (Guild guild : bot.getGuilds()) {
@@ -302,6 +305,7 @@ public class PingPermissions {
 	}
 
 	public void printRoleToPing(SlashCommandInteractionEvent event, Role pingableRole) {
+		logger.info("{{}} Printing role to ping for user {}", event.getGuild(), event.getUser().getName());
 		PingPermissionData data = get(pingableRole);
 
 		Channel channel = event.getChannel();
@@ -348,6 +352,7 @@ public class PingPermissions {
 	}
 
 	public void printPermissions(SlashCommandInteractionEvent event, Role pingableRole) {
+		logger.info("{{}} Printing permissions for user {}", event.getGuild(), event.getUser().getName());
 		PingPermissionData data = get(pingableRole);
 		EmbedBuilder builder = new EmbedBuilder();
 		builder.setColor(COLOR);
@@ -410,10 +415,12 @@ public class PingPermissions {
 				switch (event.getSubcommandName()) {
 					case "add":
 						addMember(pingableRole, permittedUser);
+						logger.info(String.format("Added user %s to role %s", permittedUser.getUser().getAsMention(), pingableRole.getAsMention()));
 						event.reply(String.format("Added user %s to role %s", permittedUser.getUser().getAsMention(), pingableRole.getAsMention())).setEphemeral(true).queue();
 						return;
 					case "remove":
 						removeUser(pingableRole, permittedUser);
+						logger.info(String.format("Removed user %s from role %s", permittedUser.getUser().getAsMention(), pingableRole.getAsMention()));
 						event.reply(String.format("Removed user %s from role %s", permittedUser.getUser().getAsMention(), pingableRole.getAsMention())).setEphemeral(true).queue();
 						return;
 				}
@@ -424,10 +431,12 @@ public class PingPermissions {
 				switch (event.getSubcommandName()) {
 					case "add":
 						addRole(pingableRole2, permittedRole);
+						logger.info(String.format("Added role %s to role %s", permittedRole.getAsMention(), pingableRole2.getAsMention()));
 						event.reply(String.format("Added role %s to role %s", permittedRole.getAsMention(), pingableRole2.getAsMention())).setEphemeral(true).queue();
 						return;
 					case "remove":
 						removeRole(pingableRole2, permittedRole);
+						logger.info(String.format("Removed role %s from role %s", permittedRole.getName(), pingableRole2.getName()));
 						event.reply(String.format("Removed role %s from role %s", permittedRole.getName(), pingableRole2.getName())).setEphemeral(true).queue();
 						return;
 				}
@@ -438,10 +447,12 @@ public class PingPermissions {
 				switch (event.getSubcommandName()) {
 					case "add":
 						addChannel(pingableRole3, permittedChannel);
+						logger.info(String.format("Added channel %s to role %s", permittedChannel.getAsMention(), pingableRole3.getAsMention()));
 						event.reply(String.format("Added channel %s to role %s", permittedChannel.getAsMention(), pingableRole3.getAsMention())).setEphemeral(true).queue();
 						return;
 					case "remove":
 						removeChannel(pingableRole3, permittedChannel);
+						logger.info(String.format("Removed channel %s from role %s", permittedChannel.getAsMention(), pingableRole3.getAsMention()));
 						event.reply(String.format("Removed channel %s from role %s", permittedChannel.getAsMention(), pingableRole3.getAsMention())).setEphemeral(true).queue();
 						return;
 				}
@@ -457,14 +468,17 @@ public class PingPermissions {
 		Member author = event.getMember();
 		Channel channel = event.getChannel();
 
-		if (author.isOwner())
+		if (isBot(guild, author))
 			return;
 
 		Pattern rolePattern = MentionType.ROLE.getPattern();
 		Matcher roleMatcher = rolePattern.matcher(msgText);
 
+		if (!roleMatcher.find())
+			return;
+
 		// Iterate through all roles in the message and stop if one is not permitted
-		while (roleMatcher.find()) {
+		do {
 			String pingedRoleId = roleMatcher.group(1);
 			Role pingedRole = guild.getRoleById(pingedRoleId);
 
@@ -472,12 +486,13 @@ public class PingPermissions {
 				continue;
 
 			PingPermissionData data = get(pingedRole);
-			if (!data.isChannelPermitted(channel) || !data.isMemberOrRolePermitted(author))
+			if (!data.isChannelPermitted(channel) || !data.isMemberOrRolePermitted(author)) {
+				logger.info("{{}} Role {} is INVALID for user {} for channel {}", guild.getName(), pingedRole.getName(), author.getUser().getName(), channel.getName());
 				return;
+			}
 
-			if (!channel.getType().isMessage())
-				return;
-		}
+			logger.info("{{}} Role {} is VALID", guild.getName(), pingedRole.getName());
+		} while (roleMatcher.find());
 
 		// Ensure @everyone and @here not getting called
 		if (MentionType.EVERYONE.getPattern().matcher(msgText).find() || MentionType.HERE.getPattern().matcher(msgText).find()) {
@@ -487,10 +502,22 @@ public class PingPermissions {
 		MessageChannel msgChannel = (MessageChannel) channel;
 
 		MessageCreateBuilder builder = new MessageCreateBuilder();
+
 		builder.setAllowedMentions(List.of(MentionType.ROLE));
 		builder.setContent(msgText);
+
+		logger.info("{{}} Sending ping from {} to channel {}", guild.getName(), author.getUser().getName(), channel.getName());
+
+		guild.getSelfMember().modifyNickname(author.getEffectiveName()).complete();
 		msgChannel.sendMessage(builder.build()).queue(createdMessage -> {
-			createdMessage.delete().queue();
+			createdMessage.delete().queue(_ -> {
+				guild.getSelfMember().modifyNickname(null).queue();
+			});
 		});
+
+	}
+
+	private boolean isBot(Guild guild, Member member) {
+		return member.getIdLong() == guild.getSelfMember().getIdLong();
 	}
 }
