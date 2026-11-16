@@ -83,7 +83,6 @@ public class CustomCommands {
 			return false;
 
 		if (!this.storage.contains(guild, name)) {
-			guild.deleteCommandById(event.getCommandId()).queue();
 			return false;
 		}
 

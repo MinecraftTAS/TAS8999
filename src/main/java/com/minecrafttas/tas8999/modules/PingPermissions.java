@@ -1,77 +1,53 @@
 package com.minecrafttas.tas8999.modules;
 
-import static com.minecrafttas.tas8999.TAS8999.LOGGER;
-
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
-import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.minecrafttas.tas8999.utils.GuildStorage;
 
+import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
-import net.dv8tion.jda.api.entities.Message.MentionType;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.channel.Channel;
-import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.interactions.commands.Command;
+import net.dv8tion.jda.api.interactions.commands.DefaultMemberPermissions;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandGroupData;
-import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import net.dv8tion.jda.internal.interactions.CommandDataImpl;
 
 public class PingPermissions {
 
-	private final List<PingPermissionData> permissionList = new ArrayList<>();
 	private final GuildStorage storage;
+	public static final int COLOR = 0x05808e;
 
 	public PingPermissions(JDA bot) {
 
 		// load guilds
 		this.storage = new GuildStorage("ping_permissions");
 		for (Guild guild : bot.getGuilds()) {
-			// load permissions
-			Properties prop = this.storage.getGuildProperties(guild);
-			prop.forEach((key, value) -> {
-				String cmd = (String) key;
-				LOGGER.info("{{}} Readding pingpermission: {}", guild.getName(), cmd);
 
-				String[] data = ((String) value).split("|", 3);
-
-				Role pingableRole = guild.getRoleById(data[0]);
-
-				List<Member> members = new ArrayList<>();
-				for (String stringUser : data[1].split(";")) {
-					members.add(guild.getMemberById(stringUser));
-				}
-
-				List<Role> roles = new ArrayList<>();
-				for (String stringRole : data[2].split(";")) {
-					roles.add(guild.getRoleById(stringRole));
-				}
-
-				List<Channel> channels = new ArrayList<>();
-				for (String stringChannel : data[3].split(";")) {
-					channels.add(guild.getNewsChannelById(stringChannel));
-				}
-
-				addPingPermission(pingableRole, members, roles, channels);
-			});
+			CommandDataImpl pingCommand = CommandDataImpl.of(Command.Type.SLASH, "ping", "Check if you are allowed to ping a restricted role");
+			pingCommand.setDefaultPermissions(DefaultMemberPermissions.ENABLED);
 
 			CommandDataImpl pingpermissionCommand = CommandDataImpl.of(Command.Type.SLASH, "pingpermission", "Modify PingPermissions");
+			pingpermissionCommand.setDefaultPermissions(DefaultMemberPermissions.DISABLED);
 
-			OptionData pingableRoleOption = new OptionData(OptionType.ROLE, "pingablerole", "The role that is pinged by the bot");
-			OptionData permittedMemberOption = new OptionData(OptionType.USER, "permitteduser", "The user that is permitted to use the ping");
-			OptionData permittedRoleOption = new OptionData(OptionType.ROLE, "permittedrole", "The role that is permitted to use the ping");
-			OptionData permittedChannelOption = new OptionData(OptionType.CHANNEL, "permittedchannel", "The channel that the ping is allowed");
+			OptionData pingableRoleOption = new OptionData(OptionType.ROLE, "pingablerole", "The role that is pinged by the bot", true);
+			OptionData permittedMemberOption = new OptionData(OptionType.USER, "permitteduser", "The user that is permitted to use the ping", true);
+			OptionData permittedRoleOption = new OptionData(OptionType.ROLE, "permittedrole", "The role that is permitted to use the ping", true);
+			OptionData permittedChannelOption = new OptionData(OptionType.CHANNEL, "permittedchannel", "The channel that the ping is allowed", true);
 
 			SubcommandGroupData userGroupData = new SubcommandGroupData("user", "userSubcommand");
 			SubcommandData addMemberSubCommand = new SubcommandData("add", "Add a user to the permissions");
@@ -94,28 +70,78 @@ public class PingPermissions {
 			removeChannelSubCommand.addOptions(pingableRoleOption, permittedChannelOption);
 			channelGroupData.addSubcommands(addChannelSubCommand, removeChannelSubCommand);
 
+			SubcommandData displayPermissions = new SubcommandData("display", "Display ping permissions for this role");
+			displayPermissions.addOptions(pingableRoleOption);
+
+			SubcommandData removePermissions = new SubcommandData("removeall", "Removes all permissions from a role");
+			removePermissions.addOptions(pingableRoleOption);
+
 			pingpermissionCommand.addSubcommandGroups(userGroupData, roleGroupData, channelGroupData);
+			pingpermissionCommand.addSubcommands(displayPermissions, removePermissions);
+
+			pingCommand.addOptions(pingableRoleOption);
+			guild.upsertCommand(pingCommand).queue();
 			guild.upsertCommand(pingpermissionCommand).queue();
 		}
 	}
 
-	public record PingPermissionData(Role pingableRole, List<Member> permittedMembers, List<Role> permittedRoles, List<Channel> permittedChannels) {
+	public record PingPermissionData(List<Member> permittedMembers, List<Role> permittedRoles, List<Channel> permittedChannels) {
+
+		public PingPermissionData() {
+			this(new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
+		}
+
+		public PingPermissionData(Guild guild, String data) {
+			Matcher matcher = Pattern.compile("([\\d;]+)?\\|([\\d;]+)?\\|([\\d;]+)?").matcher(data);
+
+			String members = "";
+			String roles = "";
+			String channels = "";
+
+			if (matcher.find()) {
+				members = matcher.group(1) != null ? matcher.group(1) : "";
+				roles = matcher.group(2) != null ? matcher.group(2) : "";
+				channels = matcher.group(3) != null ? matcher.group(3) : "";
+			}
+
+			this(guild, members, roles, channels);
+		}
+
+		public PingPermissionData(Guild guild, String permittedMembers, String permittedRoles, String permittedChannels) {
+			this(guild, permittedMembers.split(";"), permittedRoles.split(";"), permittedChannels.split(";"));
+		}
+
+		public PingPermissionData(Guild guild, String[] permittedMembers, String[] permittedRoles, String[] permittedChannels) {
+			List<Member> members = new ArrayList<>();
+			if (permittedMembers.length != 0)
+				members = Stream.of(permittedMembers).filter(e -> !e.isEmpty()).map(e -> guild.getMemberById(e)).collect(Collectors.toList());
+
+			List<Role> roles = new ArrayList<>();
+			if (permittedRoles.length != 0)
+				roles = Stream.of(permittedRoles).filter(e -> !e.isEmpty()).map(e -> guild.getRoleById(e)).collect(Collectors.toList());
+
+			List<Channel> channels = new ArrayList<>();
+			if (permittedRoles.length != 0)
+				channels = Stream.of(permittedChannels).filter(e -> !e.isEmpty()).map(e -> (Channel) guild.getGuildChannelById(e)).collect(Collectors.toList());
+
+			this(members, roles, channels);
+		}
+
+		public PingPermissionData(List<Member> permittedMembers, List<Role> permittedRoles, List<Channel> permittedChannels) {
+			this.permittedMembers = permittedMembers;
+			this.permittedRoles = permittedRoles;
+			this.permittedChannels = permittedChannels;
+		}
 
 		@Override
 		public final String toString() {
-			List<String> users = new ArrayList<>();
-			permittedMembers.forEach(user -> {
-				users.add(user.getId());
-			});
-			List<String> roles = new ArrayList<>();
-			permittedRoles.forEach(role -> {
-				roles.add(role.getId());
-			});
-			List<String> channels = new ArrayList<>();
-			permittedChannels.forEach(channel -> {
-				channels.add(channel.getId());
-			});
-			return String.format("%s|%s|%s|%s", pingableRole.getId(), String.join(";", users), String.join(";", channels));
+			//@formatter:off
+			return String.format("%s|%s|%s", 
+					permittedMembers.stream().map(e -> e.getId()).collect(Collectors.joining(";")),
+					permittedRoles.stream().map(e -> e.getId()).collect(Collectors.joining(";")),
+					permittedChannels.stream().map(e -> e.getId()).collect(Collectors.joining(";"))
+			);
+			//@formatter:on
 		}
 
 		public boolean isMemberPermitted(Member member) {
@@ -123,13 +149,20 @@ public class PingPermissions {
 				if (permittedMember.getIdLong() == member.getIdLong())
 					return true;
 			}
-
-			for (Role memberRole : member.getRoles()) {
-				if (isRolePermitted(memberRole))
-					return true;
-			}
-
 			return false;
+		}
+
+		public void addMember(Member member) {
+			if (!isMemberPermitted(member))
+				permittedMembers.add(member);
+		}
+
+		public void removeMember(Member member) {
+			for (Iterator<Member> iterator = permittedMembers.iterator(); iterator.hasNext();) {
+				Member permittedMember = (Member) iterator.next();
+				if (permittedMember.getIdLong() == member.getIdLong())
+					iterator.remove();
+			}
 		}
 
 		public boolean isRolePermitted(Role role) {
@@ -140,6 +173,28 @@ public class PingPermissions {
 			return false;
 		}
 
+		public void addRole(Role role) {
+			if (!isRolePermitted(role))
+				permittedRoles.add(role);
+		}
+
+		public void removeRole(Role role) {
+			for (Iterator<Role> iterator = permittedRoles.iterator(); iterator.hasNext();) {
+				Role permittedRole = (Role) iterator.next();
+				if (permittedRole.getIdLong() == role.getIdLong())
+					iterator.remove();
+			}
+		}
+
+		public boolean isMemberOrRolePermitted(Member member) {
+			for (Role memberRole : member.getRoles()) {
+				if (isRolePermitted(memberRole))
+					return true;
+			}
+
+			return isMemberPermitted(member);
+		}
+
 		public boolean isChannelPermitted(Channel channel) {
 			for (Channel permittedChannel : permittedChannels) {
 				if (permittedChannel.getIdLong() == channel.getIdLong())
@@ -148,84 +203,216 @@ public class PingPermissions {
 			return false;
 		}
 
+		public void addChannel(Channel channel) {
+			if (!isChannelPermitted(channel))
+				permittedChannels.add(channel);
+		}
+
+		public void removeChannel(Channel channel) {
+			for (Iterator<Channel> iterator = permittedChannels.iterator(); iterator.hasNext();) {
+				Channel permittedChannel = (Channel) iterator.next();
+				if (permittedChannel.getIdLong() == channel.getIdLong())
+					iterator.remove();
+			}
+		}
+
+		public boolean isEmpty() {
+			return permittedMembers.isEmpty() && permittedRoles.isEmpty() && permittedChannels.isEmpty();
+		}
 	}
 
-	public void addUser(Role pingableRole, Member... permittedMember) {
+	public void addMember(Role pingableRole, Member... permittedMember) {
 		PingPermissionData permission = get(pingableRole);
 		for (Member newMember : permittedMember) {
-			permission.permittedMembers.add(newMember);
+			permission.addMember(newMember);
 		}
+
+		put(pingableRole, permission);
 	}
 
 	public void removeUser(Role pingableRole, Member... permittedMember) {
 		PingPermissionData permission = get(pingableRole);
 		for (Member newMember : permittedMember) {
-			permission.permittedMembers.remove(newMember);
+			permission.removeMember(newMember);
 		}
+
+		put(pingableRole, permission);
 	}
 
 	public void addRole(Role pingableRole, Role... permittedRole) {
 		PingPermissionData permission = get(pingableRole);
-		for (Role newMember : permittedRole) {
-			permission.permittedRoles.add(newMember);
+		for (Role newRole : permittedRole) {
+			permission.addRole(newRole);
 		}
+
+		put(pingableRole, permission);
 	}
 
 	public void removeRole(Role pingableRole, Role... permittedRole) {
 		PingPermissionData permission = get(pingableRole);
-		for (Role newMember : permittedRole) {
-			permission.permittedRoles.remove(newMember);
+		for (Role newRole : permittedRole) {
+			permission.removeRole(newRole);
 		}
+
+		put(pingableRole, permission);
 	}
 
 	public void addChannel(Role pingableRole, Channel... permittedChannel) {
 		PingPermissionData permission = get(pingableRole);
 		for (Channel newChannel : permittedChannel) {
-			permission.permittedChannels.add(newChannel);
+			permission.addChannel(newChannel);
 		}
+
+		put(pingableRole, permission);
 	}
 
 	public void removeChannel(Role pingableRole, Channel... permittedChannel) {
 		PingPermissionData permission = get(pingableRole);
 		for (Channel newChannel : permittedChannel) {
-			permission.permittedChannels.remove(newChannel);
+			permission.removeChannel(newChannel);
 		}
+
+		put(pingableRole, permission);
 	}
 
 	public PingPermissionData get(Role pingableRole) {
-		for (PingPermissionData permission : permissionList) {
-			if (permission.pingableRole.getIdLong() == pingableRole.getIdLong()) {
-				return permission;
-			}
+		Guild guild = pingableRole.getGuild();
+		String data = storage.get(guild, pingableRole.getId());
+		if (data == null)
+			return new PingPermissionData();
+		return new PingPermissionData(guild, data);
+	}
+
+	public void put(Role pingableRole, PingPermissionData data) {
+		Guild guild = pingableRole.getGuild();
+		if (data.isEmpty())
+			remove(pingableRole);
+
+		storage.set(guild, pingableRole.getId(), data.toString());
+		storage.saveGuild(guild);
+	}
+
+	public void remove(Role pingableRole) {
+		Guild guild = pingableRole.getGuild();
+		storage.remove(guild, pingableRole.getId());
+		storage.saveGuild(guild);
+	}
+
+	public void printRoleToPing(SlashCommandInteractionEvent event, Role pingableRole) {
+		PingPermissionData data = get(pingableRole);
+
+		Channel channel = event.getChannel();
+		Member author = event.getMember();
+
+		EmbedBuilder builder = new EmbedBuilder();
+
+		if (pingableRole.isMentionable()) {
+			builder.setColor(COLOR);
+			builder.setDescription("This role is publically pingable and not restricted!\n\n"
+					+ "Discord still has no good way of assigning ping permissions to restricted roles, so instead, the bot will ping on your behalf!\n"
+					+ "This command is only good for moderators who have access to announcement channels.");
+			event.replyEmbeds(builder.build()).setEphemeral(true).queue();
+			return;
 		}
 
-		PingPermissionData newPermission = new PingPermissionData(pingableRole, new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
-		permissionList.add(newPermission);
-		return newPermission;
+		if (!data.isMemberOrRolePermitted(author)) {
+			builder.setColor(0xB90000);
+			builder.setDescription("You don't have permission to ping this role!");
+			event.replyEmbeds(builder.build()).setEphemeral(true).queue();
+			return;
+		}
+
+		if (!data.isChannelPermitted(channel)) {
+			String whitelistedChannels = data.permittedChannels.stream().map(e -> e.getAsMention()).collect(Collectors.joining("\n"));
+			if (whitelistedChannels.isBlank()) {
+				whitelistedChannels = "*No whitelisted channels. An admin probably forgot to add this*";
+			}
+			builder.setColor(0xB90000);
+			builder.setDescription("You have permission to ping this role, however this channel is not whitelisted.");
+			builder.addField("Whitelisted Channels", whitelistedChannels, false);
+			event.replyEmbeds(builder.build()).setEphemeral(true).queue();
+			return;
+		}
+
+		builder.setColor(COLOR);
+		builder.setDescription(String.format("You can ping in this channel! Righclick on the role then click `Mention`\n %s", pingableRole.getAsMention()));
+		String whitelistedChannels = data.permittedChannels.stream().map(e -> e.getAsMention()).collect(Collectors.joining("\n"));
+		if (whitelistedChannels.isBlank()) {
+			whitelistedChannels = "*No whitelisted channels. An admin probably forgot to add this*";
+		}
+		builder.addField("All Whitelisted Channels", whitelistedChannels, false);
+		event.replyEmbeds(builder.build()).setEphemeral(true).queue();
 	}
 
-	public void printPermissions(Role pingableRole) {
+	public void printPermissions(SlashCommandInteractionEvent event, Role pingableRole) {
+		PingPermissionData data = get(pingableRole);
+		EmbedBuilder builder = new EmbedBuilder();
+		builder.setColor(COLOR);
+		builder.setTitle(String.format("Ping permissions for role %s", pingableRole.getName()));
 
-	}
+		//@formatter:off
+		String members = data.permittedMembers.stream()
+				.map(member -> member.getUser().getAsMention())
+				.collect(Collectors.joining("\n"));
+		//@formatter:on
 
-	public void addPingPermission(Role pingableRole, List<Member> members, List<Role> permittedRoles, List<Channel> permittedChannels) {
-		permissionList.add(new PingPermissionData(pingableRole, members, permittedRoles, permittedChannels));
+		builder.addField("Members", members, false);
+
+		//@formatter:off
+		String roles = data.permittedRoles.stream()
+				.map(role -> role.getAsMention())
+				.collect(Collectors.joining("\n"));
+		//@formatter:on
+
+		builder.addField("Roles", roles, false);
+
+		//@formatter:off
+		String channels = data.permittedChannels.stream()
+				.map(channel -> channel.getAsMention())
+				.collect(Collectors.joining("\n"));
+		//@formatter:on
+
+		builder.addField("Channels", channels, false);
+
+		event.replyEmbeds(builder.build()).setEphemeral(true).queue();
 	}
 
 	public void onSlashCommand(SlashCommandInteractionEvent event) {
+		if (event.getFullCommandName().replace(" ", "/").concat("/").startsWith("ping/")) {
+			printRoleToPing(event, event.getOption("pingablerole").getAsRole());
+			return;
+		}
+
+		switch (event.getSubcommandName()) {
+			case "display":
+				Role pingableRole = event.getOption("pingablerole").getAsRole();
+				printPermissions(event, pingableRole);
+				return;
+			case "removeall":
+				Role pingableRole2 = event.getOption("pingablerole").getAsRole();
+				remove(pingableRole2);
+				event.reply(String.format("Removed all permissions from %s", pingableRole2.getAsMention())).setEphemeral(true).queue();
+				return;
+		}
+
+		if (event.getSubcommandGroup() == null) {
+			event.reply("No subcommand group found").setEphemeral(true).queue();
+			return;
+		}
+
 		switch (event.getSubcommandGroup()) {
 			case "user":
 				Role pingableRole = event.getOption("pingablerole").getAsRole();
 				Member permittedUser = event.getOption("permitteduser").getAsMember();
 				switch (event.getSubcommandName()) {
 					case "add":
-						addUser(pingableRole, permittedUser);
-						event.reply(String.format("Added user %s to role %s", permittedUser.getUser().getName(), pingableRole.getName())).setEphemeral(true).queue();
-						break;
+						addMember(pingableRole, permittedUser);
+						event.reply(String.format("Added user %s to role %s", permittedUser.getUser().getAsMention(), pingableRole.getAsMention())).setEphemeral(true).queue();
+						return;
 					case "remove":
 						removeUser(pingableRole, permittedUser);
-						event.reply(String.format("Removed user %s to role %s", permittedUser.getUser().getName(), pingableRole.getName())).setEphemeral(true).queue();
-						break;
+						event.reply(String.format("Removed user %s from role %s", permittedUser.getUser().getAsMention(), pingableRole.getAsMention())).setEphemeral(true).queue();
+						return;
 				}
 				break;
 			case "role":
@@ -234,12 +421,12 @@ public class PingPermissions {
 				switch (event.getSubcommandName()) {
 					case "add":
 						addRole(pingableRole2, permittedRole);
-						event.reply(String.format("Added role %s to role %s", permittedRole.getName(), pingableRole2.getName())).setEphemeral(true).queue();
-						break;
+						event.reply(String.format("Added role %s to role %s", permittedRole.getAsMention(), pingableRole2.getAsMention())).setEphemeral(true).queue();
+						return;
 					case "remove":
 						removeRole(pingableRole2, permittedRole);
-						event.reply(String.format("Removed role %s to role %s", permittedRole.getName(), pingableRole2.getName())).setEphemeral(true).queue();
-						break;
+						event.reply(String.format("Removed role %s from role %s", permittedRole.getName(), pingableRole2.getName())).setEphemeral(true).queue();
+						return;
 				}
 				break;
 			case "channel":
@@ -248,12 +435,12 @@ public class PingPermissions {
 				switch (event.getSubcommandName()) {
 					case "add":
 						addChannel(pingableRole3, permittedChannel);
-						event.reply(String.format("Added channel %s to role %s", permittedChannel.getName(), pingableRole3.getName())).setEphemeral(true).queue();
-						break;
+						event.reply(String.format("Added channel %s to role %s", permittedChannel.getAsMention(), pingableRole3.getAsMention())).setEphemeral(true).queue();
+						return;
 					case "remove":
 						removeChannel(pingableRole3, permittedChannel);
-						event.reply(String.format("Removed channel %s to role %s", permittedChannel.getName(), pingableRole3.getName())).setEphemeral(true).queue();
-						break;
+						event.reply(String.format("Removed channel %s from role %s", permittedChannel.getAsMention(), pingableRole3.getAsMention())).setEphemeral(true).queue();
+						return;
 				}
 				break;
 		}
@@ -281,20 +468,10 @@ public class PingPermissions {
 //			return;
 
 		PingPermissionData data = get(pingedRole);
-		if (!data.isChannelPermitted(channel) || !data.isMemberPermitted(author))
+		if (!data.isChannelPermitted(channel) || !data.isMemberOrRolePermitted(author))
 			return;
 
-		if (!channel.getType().isMessage()) {
+		if (!channel.getType().isMessage())
 			return;
-		}
-
-		MessageChannel msgChannel = (MessageChannel) channel;
-
-		MessageCreateBuilder builder = new MessageCreateBuilder();
-		builder.setAllowedMentions(List.of(MentionType.ROLE));
-		builder.setContent(msgText);
-		msgChannel.sendMessage(builder.build()).queue(createdMessage -> {
-			createdMessage.delete().queue();
-		});
 	}
 }
