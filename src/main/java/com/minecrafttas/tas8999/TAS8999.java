@@ -97,17 +97,17 @@ public class TAS8999 extends ListenerAdapter {
 			String name = event.getOption("name").getAsString();
 
 			switch (commandPath) {
-				case "customcommand/upsert" -> event.getChannel().retrieveMessageById(event.getOption("messageid").getAsString()).queue(message -> commandHandler.addCommand(event, event.getGuild(), true, name, event.getOption("description").getAsString(), message.getContentRaw()));
-				case "customcommand/rename" -> commandHandler.renameCommand(event, name, event.getOption("newname").getAsString());
-				case "customcommand/remove" -> commandHandler.removeCommand(event, name);
+				case "customcommand/upsert/" -> event.getChannel().retrieveMessageById(event.getOption("messageid").getAsString()).queue(message -> commandHandler.addCommand(event, event.getGuild(), true, name, event.getOption("description").getAsString(), message.getContentRaw()));
+				case "customcommand/rename/" -> commandHandler.renameCommand(event, name, event.getOption("newname").getAsString());
+				case "customcommand/remove/" -> commandHandler.removeCommand(event, name);
 			}
 		} else if (commandPath.startsWith("submit/")) {
 			String url = event.getOption("url").getAsString();
 			String comment = event.getOption("comment", null, option -> option.getAsString());
 
 			switch (commandPath) {
-				case "submit/tas" -> this.submissionManagement.onSubmission(event, 399223722491510794L, url, comment, true);
-				case "submit/misc" -> this.submissionManagement.onSubmission(event, 555113094570049577L, url, comment, false);
+				case "submit/tas/" -> this.submissionManagement.onSubmission(event, 399223722491510794L, url, comment, true);
+				case "submit/misc/" -> this.submissionManagement.onSubmission(event, 555113094570049577L, url, comment, false);
 			}
 		} else if (commandPath.startsWith("pingpermission/") || commandPath.startsWith("ping/")) {
 			pingPermissions.onSlashCommand(event);
