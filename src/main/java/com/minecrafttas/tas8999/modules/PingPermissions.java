@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 
@@ -23,6 +22,7 @@ import net.dv8tion.jda.api.entities.channel.Channel;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
+import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.interactions.commands.Command;
 import net.dv8tion.jda.api.interactions.commands.DefaultMemberPermissions;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
@@ -119,16 +119,36 @@ public class PingPermissions {
 
 		public PingPermissionData(Guild guild, String[] permittedMembers, String[] permittedRoles, String[] permittedChannels) {
 			List<Member> members = new ArrayList<>();
-			if (permittedMembers.length != 0)
-				members = Stream.of(permittedMembers).filter(e -> !e.isEmpty()).map(e -> guild.retrieveMemberById(e).complete()).collect(Collectors.toList());
+			for (String permittedMember : permittedMembers) {
+				if (permittedMember.isEmpty())
+					continue;
+				Member newMember = null;
+				try {
+					newMember = guild.retrieveMemberById(permittedMember).complete();
+				} catch (ErrorResponseException e) {
+					continue;
+				}
+				if (newMember != null)
+					members.add(newMember);
+			}
 
 			List<Role> roles = new ArrayList<>();
-			if (permittedRoles.length != 0)
-				roles = Stream.of(permittedRoles).filter(e -> !e.isEmpty()).map(e -> guild.getRoleById(e)).collect(Collectors.toList());
+			for (String permittedRole : permittedRoles) {
+				if (permittedRole.isEmpty())
+					continue;
+				Role newRole = guild.getRoleById(permittedRole);
+				if (newRole != null)
+					roles.add(newRole);
+			}
 
 			List<Channel> channels = new ArrayList<>();
-			if (permittedRoles.length != 0)
-				channels = Stream.of(permittedChannels).filter(e -> !e.isEmpty()).map(e -> (Channel) guild.getGuildChannelById(e)).collect(Collectors.toList());
+			for (String permittedChannel : permittedChannels) {
+				if (permittedChannel.isEmpty())
+					continue;
+				Channel newChannel = (Channel) guild.getGuildChannelById(permittedChannel);
+				if (newChannel != null)
+					channels.add(newChannel);
+			}
 
 			this(members, roles, channels);
 		}
