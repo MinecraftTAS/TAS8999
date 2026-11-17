@@ -64,7 +64,6 @@ public class SpamProtection extends TimerTask {
 
 			suspiciousUsers.remove(userData);
 		}
-
 	}
 
 	private record UserData(User user, long timestamp, List<Message> messages) {
@@ -82,5 +81,4 @@ public class SpamProtection extends TimerTask {
 
 		return null;
 	}
-
 }

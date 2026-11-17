@@ -29,7 +29,7 @@ application {
 }
 
 java {
-	sourceCompatibility = targetCompatibility = 24
+	sourceCompatibility = targetCompatibility = 25
 }
 
 spotless {
